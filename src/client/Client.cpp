@@ -81,7 +81,7 @@ bool Client::IsFirstRun()
 	return firstRun;
 }
 
-void Client::SetMessageOfTheDay(String const &message)
+void Client::SetMessageOfTheDay(String message)
 {
 	messageOfTheDay = message;
 	notifyMessageOfTheDay();
@@ -92,7 +92,7 @@ String Client::GetMessageOfTheDay()
 	return messageOfTheDay;
 }
 
-void Client::AddServerNotification(ServerNotification const &notification)
+void Client::AddServerNotification(ServerNotification notification)
 {
 	serverNotifications.push_back(notification);
 	notifyNewNotification(notification);
@@ -230,7 +230,7 @@ void Client::notifyAuthUserChanged()
 	}
 }
 
-void Client::notifyNewNotification(ServerNotification const &notification)
+void Client::notifyNewNotification(ServerNotification notification)
 {
 	for (std::vector<ClientListener*>::iterator iterator = listeners.begin(), end = listeners.end(); iterator != end; ++iterator)
 	{
@@ -292,7 +292,7 @@ void Client::MoveStampToFront(ByteString stampID)
 	}
 }
 
-std::unique_ptr<SaveFile> Client::GetStamp(ByteString const &stampID)
+std::unique_ptr<SaveFile> Client::GetStamp(ByteString stampID)
 {
 	ByteString stampFile = ByteString(ByteString::Build(STAMPS_DIR, PATH_SEP_CHAR, stampID, ".stm"));
 	auto saveFile = LoadSaveFile(stampFile);
@@ -303,7 +303,7 @@ std::unique_ptr<SaveFile> Client::GetStamp(ByteString const &stampID)
 	return saveFile;
 }
 
-void Client::DeleteStamp(ByteString const &stampID)
+void Client::DeleteStamp(ByteString stampID)
 {
 	auto it = std::remove(stampIDs.begin(), stampIDs.end(), stampID);
 	if (it != stampIDs.end())
@@ -314,7 +314,7 @@ void Client::DeleteStamp(ByteString const &stampID)
 	}
 }
 
-void Client::RenameStamp(ByteString const &stampID, ByteString const &newName)
+void Client::RenameStamp(ByteString stampID, ByteString newName)
 {
 	auto oldPath = ByteString::Build(STAMPS_DIR, PATH_SEP_CHAR, stampID, ".stm");
 	auto newPath = ByteString::Build(STAMPS_DIR, PATH_SEP_CHAR, newName, ".stm");
@@ -433,7 +433,7 @@ const std::vector<ByteString> &Client::GetStamps() const
 	return stampIDs;
 }
 
-std::unique_ptr<SaveFile> Client::LoadSaveFile(ByteString const &filename)
+std::unique_ptr<SaveFile> Client::LoadSaveFile(ByteString filename)
 {
 	ByteString err;
 	std::unique_ptr<SaveFile> file;

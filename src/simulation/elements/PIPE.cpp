@@ -106,23 +106,22 @@ int Element_PIPE_update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	auto &part = parts[i];
-	if (part.ctype && !elements[TYP(part.ctype)].Enabled)
-		part.ctype = 0;
-	if (part.tmp & PPIP_TMPFLAG_TRIGGERS)
+	if (parts[i].ctype && !elements[TYP(parts[i].ctype)].Enabled)
+		parts[i].ctype = 0;
+	if (parts[i].tmp & PPIP_TMPFLAG_TRIGGERS)
 	{
 		int pause_changed = 0;
-		if (part.tmp & PPIP_TMPFLAG_TRIGGER_ON) // TRIGGER_ON overrides TRIGGER_OFF
+		if (parts[i].tmp & PPIP_TMPFLAG_TRIGGER_ON) // TRIGGER_ON overrides TRIGGER_OFF
 		{
-			if (part.tmp & PPIP_TMPFLAG_PAUSED)
+			if (parts[i].tmp & PPIP_TMPFLAG_PAUSED)
 				pause_changed = 1;
-			part.tmp &= ~PPIP_TMPFLAG_PAUSED;
+			parts[i].tmp &= ~PPIP_TMPFLAG_PAUSED;
 		}
-		else if (part.tmp & PPIP_TMPFLAG_TRIGGER_OFF)
+		else if (parts[i].tmp & PPIP_TMPFLAG_TRIGGER_OFF)
 		{
-			if (!(part.tmp & PPIP_TMPFLAG_PAUSED))
+			if (!(parts[i].tmp & PPIP_TMPFLAG_PAUSED))
 				pause_changed = 1;
-			part.tmp |= PPIP_TMPFLAG_PAUSED;
+			parts[i].tmp |= PPIP_TMPFLAG_PAUSED;
 		}
 		if (pause_changed)
 		{
@@ -135,38 +134,37 @@ int Element_PIPE_update(UPDATE_FUNC_ARGS)
 						auto r = pmap[y+ry][x+rx];
 						if (TYP(r) == PT_BRCK)
 						{
-							int rid = ID(r);
-							if (part.tmp & PPIP_TMPFLAG_PAUSED)
-								parts[rid].tmp = 0;
+							if (parts[i].tmp & PPIP_TMPFLAG_PAUSED)
+								parts[ID(r)].tmp = 0;
 							else
-								parts[rid].tmp = 1; //make surrounding BRCK glow
+								parts[ID(r)].tmp = 1; //make surrounding BRCK glow
 						}
 					}
 				}
 			}
 		}
 
-		if (part.tmp & PPIP_TMPFLAG_TRIGGER_REVERSE)
+		if (parts[i].tmp & PPIP_TMPFLAG_TRIGGER_REVERSE)
 		{
-			part.tmp ^= PPIP_TMPFLAG_REVERSED;
+			parts[i].tmp ^= PPIP_TMPFLAG_REVERSED;
 			// Switch colors so it goes in reverse
-			if ((part.tmp&PFLAG_COLORS) != PFLAG_COLOR_GREEN)
-				part.tmp ^= PFLAG_COLOR_GREEN;
-			if (part.tmp & 0x100) //Switch one pixel pipe direction
+			if ((parts[i].tmp&PFLAG_COLORS) != PFLAG_COLOR_GREEN)
+				parts[i].tmp ^= PFLAG_COLOR_GREEN;
+			if (parts[i].tmp & 0x100) //Switch one pixel pipe direction
 			{
-				int coords = (part.tmp>>13)&0xF;
-				int coords2 = (part.tmp>>9)&0xF;
-				part.tmp &= ~0x1FE00;
-				part.tmp |= coords<<9;
-				part.tmp |= coords2<<13;
+				int coords = (parts[i].tmp>>13)&0xF;
+				int coords2 = (parts[i].tmp>>9)&0xF;
+				parts[i].tmp &= ~0x1FE00;
+				parts[i].tmp |= coords<<9;
+				parts[i].tmp |= coords2<<13;
 			}
 		}
 
-		part.tmp &= ~PPIP_TMPFLAG_TRIGGERS;
+		parts[i].tmp &= ~PPIP_TMPFLAG_TRIGGERS;
 	}
-	if ((part.tmp&PFLAG_COLORS) && !(part.tmp & PPIP_TMPFLAG_PAUSED))
+	if ((parts[i].tmp&PFLAG_COLORS) && !(parts[i].tmp & PPIP_TMPFLAG_PAUSED))
 	{
-		if (part.life==3)
+		if (parts[i].life==3)
 		{
 			int lastneighbor = -1;
 			int neighborcount = 0;
@@ -190,31 +188,30 @@ int Element_PIPE_update(UPDATE_FUNC_ARGS)
 						}
 						if (TYP(r) != PT_PIPE && TYP(r) != PT_PPIP)
 							continue;
-						unsigned int next = nextColor(part.tmp);
-						unsigned int prev = prevColor(part.tmp);
-						int rid = ID(r);
-						if (parts[rid].tmp&PFLAG_INITIALIZING)
+						unsigned int next = nextColor(parts[i].tmp);
+						unsigned int prev = prevColor(parts[i].tmp);
+						if (parts[ID(r)].tmp&PFLAG_INITIALIZING)
 						{
-							parts[rid].tmp |= next;
-							parts[rid].tmp &= ~PFLAG_INITIALIZING;
-							parts[rid].life = 6;
+							parts[ID(r)].tmp |= next;
+							parts[ID(r)].tmp &= ~PFLAG_INITIALIZING;
+							parts[ID(r)].life = 6;
 							// Is a single pixel pipe
-							if (part.tmp&0x100)
+							if (parts[i].tmp&0x100)
 							{
 								// Will transfer to a single pixel pipe
-								parts[rid].tmp |= 0x200;
+								parts[ID(r)].tmp |= 0x200;
 								// Coords of where it came from
-								parts[rid].tmp |= (count - 1) << 10;
-								part.tmp |= (8 - count) << 14;
-								part.tmp |= 0x2000;
+								parts[ID(r)].tmp |= (count - 1) << 10;
+								parts[i].tmp |= (8 - count) << 14;
+								parts[i].tmp |= 0x2000;
 							}
 							neighborcount ++;
-							lastneighbor = rid;
+							lastneighbor = ID(r);
 						}
-						else if ((parts[rid].tmp&PFLAG_COLORS) != prev)
+						else if ((parts[ID(r)].tmp&PFLAG_COLORS) != prev)
 						{
 							neighborcount ++;
-							lastneighbor = rid;
+							lastneighbor = ID(r);
 						}
 					}
 				}
@@ -226,9 +223,9 @@ int Element_PIPE_update(UPDATE_FUNC_ARGS)
 		}
 		else
 		{
-			if (part.flags&PFLAG_NORMALSPEED)//skip particle push to prevent particle number being higher causing speed up
+			if (parts[i].flags&PFLAG_NORMALSPEED)//skip particle push to prevent particle number being higher causing speed up
 			{
-				part.flags &= ~PFLAG_NORMALSPEED;
+				parts[i].flags &= ~PFLAG_NORMALSPEED;
 			}
 			else
 			{
@@ -244,31 +241,26 @@ int Element_PIPE_update(UPDATE_FUNC_ARGS)
 				auto r = pmap[y+ry][x+rx];
 				if(!r)
 					r = sim->photons[y+ry][x+rx];
-				if (surround_space && !r && TYP(part.ctype))  //creating at end
+				if (surround_space && !r && TYP(parts[i].ctype))  //creating at end
 				{
-					auto np = sim->create_part(-1, x+rx, y+ry, TYP(part.ctype));
+					auto np = sim->create_part(-1, x+rx, y+ry, TYP(parts[i].ctype));
 					if (np!=-1)
 					{
 						Element_PIPE_transfer_pipe_to_part(sim, parts+i, parts+np, false);
 					}
 				}
 				//try eating particle at entrance
-				else if (!TYP(part.ctype) && (elements[TYP(r)].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY)))
+				else if (!TYP(parts[i].ctype) && (elements[TYP(r)].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY)))
 				{
-					int rid = ID(r);
 					if (TYP(r)==PT_SOAP)
-						Element_SOAP_detach(sim, rid);
-					Element_PIPE_transfer_part_to_pipe(parts+rid, parts+i);
-					sim->kill_part(rid);
+						Element_SOAP_detach(sim, ID(r));
+					Element_PIPE_transfer_part_to_pipe(parts+(ID(r)), parts+i);
+					sim->kill_part(ID(r));
 				}
-				else if (!TYP(part.ctype) && TYP(r)==PT_STOR)
+				else if (!TYP(parts[i].ctype) && TYP(r)==PT_STOR && sd.IsElement(parts[ID(r)].tmp) && (elements[parts[ID(r)].tmp].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY)))
 				{
-					int rid = ID(r);
-					if (sd.IsElement(parts[rid].tmp) && (elements[parts[rid].tmp].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY)))
-					{
-						// STOR stores properties in the same places as PIPE does
-						transfer_pipe_to_pipe(parts+rid, parts+i, true);
-					}
+					// STOR stores properties in the same places as PIPE does
+					transfer_pipe_to_pipe(parts+(ID(r)), parts+i, true);
 				}
 			}
 		}

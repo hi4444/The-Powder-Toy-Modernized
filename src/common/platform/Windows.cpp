@@ -219,7 +219,7 @@ ByteString ExecutableName()
 void DoRestart()
 {
 	ByteString exename = ExecutableName();
-	if (!exename.empty())
+	if (exename.length())
 	{
 		int ret = int(INT_PTR(ShellExecuteW(nullptr, nullptr, WinWiden(exename).c_str(), nullptr, nullptr, SW_SHOWNORMAL)));
 		if (ret <= 32)
@@ -314,7 +314,7 @@ bool UpdateStart(std::span<const char> data)
 {
 	ByteString exeName = Platform::ExecutableName(), updName;
 
-	if (exeName.empty())
+	if (!exeName.length())
 		return false;
 
 	updName = exeName;

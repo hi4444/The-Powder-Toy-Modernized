@@ -56,10 +56,7 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	auto &part = parts[i];
-	auto cx = x / CELL;
-	auto cy = y / CELL;
-	sim->pv[cy][cx] -= .003f;
+	sim->pv[y/CELL][x/CELL] -= .003f;
 	int under = pmap[y][x];
 	int utype = TYP(under);
 	int uID = ID(under);
@@ -79,7 +76,7 @@ static int update(UPDATE_FUNC_ARGS)
 		break;
 	}
 	case PT_DEUT:
-		if (sim->rng.chance(-((int)sim->pv[cy][cx] - 4) + (parts[uID].life / 100), 200))
+		if (sim->rng.chance(-((int)sim->pv[y / CELL][x / CELL] - 4) + (parts[uID].life / 100), 200))
 		{
 			DeutImplosion(sim, parts[uID].life, x, y, restrict_flt(parts[uID].temp + parts[uID].life * 500, MIN_TEMP, MAX_TEMP), PT_PROT);
 			sim->kill_part(uID);
@@ -90,8 +87,8 @@ static int update(UPDATE_FUNC_ARGS)
 		if (parts[uID].life > 5 && sim->rng.chance(1, 10))
 		{
 			sim->part_change_type(i, x, y, PT_PHOT);
-			part.life *= 2;
-			part.ctype = 0x3FFFFFFF;
+			parts[i].life *= 2;
+			parts[i].ctype = 0x3FFFFFFF;
 		}
 		break;
 	case PT_EXOT:
@@ -99,10 +96,10 @@ static int update(UPDATE_FUNC_ARGS)
 		break;
 	case PT_WIFI:
 		float change;
-		if (part.temp < 173.15f) change = -1000.0f;
-		else if (part.temp < 273.15f) change = -100.0f;
-		else if (part.temp > 473.15f) change = 1000.0f;
-		else if (part.temp > 373.15f) change = 100.0f;
+		if (parts[i].temp < 173.15f) change = -1000.0f;
+		else if (parts[i].temp < 273.15f) change = -100.0f;
+		else if (parts[i].temp > 473.15f) change = 1000.0f;
+		else if (parts[i].temp > 373.15f) change = 100.0f;
 		else change = 0.0f;
 		parts[uID].temp = restrict_flt(parts[uID].temp + change, MIN_TEMP, MAX_TEMP);
 		break;
@@ -130,9 +127,9 @@ static int update(UPDATE_FUNC_ARGS)
 		break;
 	case PT_NONE:
 		//slowly kill if it's not inside an element
-		if (part.life)
+		if (parts[i].life)
 		{
-			if (!--part.life)
+			if (!--parts[i].life)
 			{
 				sim->kill_part(i);
 				return 1;
@@ -141,11 +138,11 @@ static int update(UPDATE_FUNC_ARGS)
 		break;
 	default:
 		//set off explosives (only when hot because it wasn't as fun when it made an entire save explode)
-		if (part.temp > 273.15f + 500.0f && (elements[utype].Flammable || elements[utype].Explosive || utype == PT_BANG))
+		if (parts[i].temp > 273.15f + 500.0f && (elements[utype].Flammable || elements[utype].Explosive || utype == PT_BANG))
 		{
 			sim->create_part(uID, x, y, PT_FIRE);
 			parts[uID].temp += restrict_flt(float(elements[utype].Flammable * 5), MIN_TEMP, MAX_TEMP);
-			sim->pv[cy][cx] += 1.00f;
+			sim->pv[y / CELL][x / CELL] += 1.00f;
 		}
 		//prevent inactive sparkable elements from being sparked
 		else if ((elements[utype].Properties&PROP_CONDUCTS) && parts[uID].life <= 4)
@@ -156,32 +153,32 @@ static int update(UPDATE_FUNC_ARGS)
 	}
 	//make temp of other things closer to it's own temperature. This will change temp of things that don't conduct, and won't change the PROT's temperature
 	if (utype && utype != PT_WIFI)
-		parts[uID].temp = restrict_flt(parts[uID].temp - (parts[uID].temp - part.temp) / 4.0f, MIN_TEMP, MAX_TEMP);
+		parts[uID].temp = restrict_flt(parts[uID].temp-(parts[uID].temp-parts[i].temp)/4.0f, MIN_TEMP, MAX_TEMP);
 
 
 	//if this proton has collided with another last frame, change it into a heavier element
-	if (part.tmp)
+	if (parts[i].tmp)
 	{
 		int newID, element;
-		if (part.tmp > 500000)
+		if (parts[i].tmp > 500000)
 			element = PT_SING; //particle accelerators are known to create earth-destroying black holes
-		else if (part.tmp > 700)
+		else if (parts[i].tmp > 700)
 			element = PT_PLUT;
-		else if (part.tmp > 420)
+		else if (parts[i].tmp > 420)
 			element = PT_URAN;
-		else if (part.tmp > 310)
+		else if (parts[i].tmp > 310)
 			element = PT_POLO;
-		else if (part.tmp > 250)
+		else if (parts[i].tmp > 250)
 			element = PT_PLSM;
-		else if (part.tmp > 100)
+		else if (parts[i].tmp > 100)
 			element = PT_O2;
-		else if (part.tmp > 50)
+		else if (parts[i].tmp > 50)
 			element = PT_CO2;
 		else
 			element = PT_NBLE;
 		newID = sim->create_part(-1, x + sim->rng.between(-1, 1), y + sim->rng.between(-1, 1), element);
 		if (newID >= 0)
-			parts[newID].temp = restrict_flt(100.0f * part.tmp, MIN_TEMP, MAX_TEMP);
+			parts[newID].temp = restrict_flt(100.0f*parts[i].tmp, MIN_TEMP, MAX_TEMP);
 		sim->kill_part(i);
 		return 1;
 	}
@@ -189,16 +186,15 @@ static int update(UPDATE_FUNC_ARGS)
 	int ahead = sim->photons[y][x];
 	if (ID(ahead) != i && TYP(ahead) == PT_PROT)
 	{
-		auto aid = ID(ahead);
-		float velocity1 = part.vx * part.vx + part.vy * part.vy;
-		float velocity2 = parts[aid].vx * parts[aid].vx + parts[aid].vy * parts[aid].vy;
-		float direction1 = atan2f(-part.vy, part.vx);
+		float velocity1 = powf(parts[i].vx, 2.0f)+powf(parts[i].vy, 2.0f);
+		float velocity2 = powf(parts[ID(ahead)].vx, 2.0f)+powf(parts[ID(ahead)].vy, 2.0f);
+		float direction1 = atan2f(-parts[i].vy, parts[i].vx);
 		float direction2 = atan2f(-parts[ID(ahead)].vy, parts[ID(ahead)].vx);
 		float difference = direction1 - direction2; if (difference < 0) difference += 6.28319f;
 
 		if (difference > 3.12659f && difference < 3.15659f && velocity1 + velocity2 > 10.0f)
 		{
-			parts[aid].tmp += int(velocity1 + velocity2);
+			parts[ID(ahead)].tmp += (int)(velocity1 + velocity2);
 			sim->kill_part(i);
 			return 1;
 		}

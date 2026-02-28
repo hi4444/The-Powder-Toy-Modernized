@@ -2,13 +2,13 @@ option(
 	'static',
 	type: 'combo',
 	choices: [ 'none', 'system', 'prebuilt' ],
-	value: 'prebuilt',
+	value: 'none',
 	description: 'Build statically using libraries present on the system (\'system\') or using prebuilt libraries official builds use (\'prebuilt\')'
 )
 option(
 	'lto',
 	type: 'boolean',
-	value: true,
+	value: false,
 	description: 'Link-time optimization, mostly a wrapper around the b_lto built-in option'
 )
 option(
@@ -126,7 +126,7 @@ option(
 option(
 	'workaround_elusive_bzip2_lib_dir',
 	type: 'string',
-	value: '/ucrt64/lib/',
+	value: '/usr/lib/x86_64-linux-gnu',
 	description: 'bzip2 library directory, see \'workaround_elusive_bzip2\''
 )
 option(
@@ -138,13 +138,13 @@ option(
 option(
 	'workaround_elusive_bzip2_include_dir',
 	type: 'string',
-	value: '/ucrt64/include/',
+	value: '/usr/include',
 	description: 'bzip2 header directory, see \'workaround_elusive_bzip2\''
 )
 option(
 	'workaround_elusive_bzip2_static',
 	type: 'boolean',
-	value: true,
+	value: false,
 	description: 'bzip2 static setting, see \'workaround_elusive_bzip2\''
 )
 option(
@@ -296,6 +296,6 @@ option(
 option(
 	'clang_tidy',
 	type: 'boolean',
-	value: true,
+	value: false,
 	description: 'Run clang-tidy to lint programming issues'
 )

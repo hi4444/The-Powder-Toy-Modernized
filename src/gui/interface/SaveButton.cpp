@@ -49,8 +49,7 @@ SaveButton::SaveButton(Point position, Point size, SaveInfo *newSave /* non-owni
 
 		votes = String::Build(save->GetVotesUp()-save->GetVotesDown());
 		icon += 0xE03B;
-		size_t const votesLength = votes.length();
-		for (size_t j = 1; j < votesLength; j++)
+		for (size_t j = 1; j < votes.length(); j++)
 			icon += 0xE03C;
 		icon += 0xE039;
 		icon += 0xE03A;

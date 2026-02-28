@@ -149,7 +149,7 @@ void Textbox::cutSelection()
 	}
 	else
 	{
-		if (backingText.empty())
+		if (!backingText.length())
 			return;
 		ClipboardPush(format::CleanString(backingText, false, true, false).ToUtf8());
 		backingText.clear();
@@ -371,7 +371,7 @@ void Textbox::OnVKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 				cursor = lowerBound;
 				changed = true;
 			}
-			else if (!backingText.empty() && cursor < (int)backingText.length())
+			else if (backingText.length() && cursor < (int)backingText.length())
 			{
 				if (ctrl)
 				{
@@ -399,7 +399,7 @@ void Textbox::OnVKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 				cursor = lowerBound;
 				changed = true;
 			}
-			else if (!backingText.empty() && cursor > 0)
+			else if (backingText.length() && cursor > 0)
 			{
 				if (ctrl)
 				{
@@ -625,7 +625,7 @@ void Textbox::Draw(const Point& screenPos)
 			screenPos + tp + Vec2{ cursorPositionX, cursorPositionY+9 },
 			0xFFFFFF_rgb);
 	}
-	if(text.empty())
+	if(!text.length())
 	{
 		g->BlendText(screenPos + tp + Vec2{ 3, 0 }, placeHolder, textColour.NoAlpha().WithAlpha(170));
 	}

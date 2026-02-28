@@ -468,20 +468,19 @@ void Graphics::RenderZoom()
 	if(!zoomEnabled)
 		return;
 	{
-		int i, j;
+		int x, y, i, j;
+		pixel pix;
 
 		DrawFilledRect(RectSized(zoomWindowPosition, { zoomScopeSize * ZFACTOR, zoomScopeSize * ZFACTOR }), 0x000000_rgb);
 		DrawRect(RectSized(zoomWindowPosition - Vec2{ 2, 2 }, Vec2{ zoomScopeSize*ZFACTOR+3, zoomScopeSize*ZFACTOR+3 }), 0xC0C0C0_rgb);
 		DrawRect(RectSized(zoomWindowPosition - Vec2{ 1, 1 }, Vec2{ zoomScopeSize*ZFACTOR+1, zoomScopeSize*ZFACTOR+1 }), 0x000000_rgb);
-		int const zoomFill = ZFACTOR - 1;
 		for (j=0; j<zoomScopeSize; j++)
 			for (i=0; i<zoomScopeSize; i++)
 			{
-				auto pix = video[{ i + zoomScopePosition.X, j + zoomScopePosition.Y }];
-				int destX = i * ZFACTOR + zoomWindowPosition.X;
-				int destY = j * ZFACTOR + zoomWindowPosition.Y;
-				for (int y = 0; y < zoomFill; y++)
-					std::fill_n(video.RowIterator(Vec2(destX, destY + y)), zoomFill, pix);
+				pix = video[{ i + zoomScopePosition.X, j + zoomScopePosition.Y }];
+				for (y=0; y<ZFACTOR-1; y++)
+					for (x=0; x<ZFACTOR-1; x++)
+						video[{ i * ZFACTOR + x + zoomWindowPosition.X, j * ZFACTOR + y + zoomWindowPosition.Y }] = pix;
 			}
 		if (zoomEnabled)
 		{

@@ -76,11 +76,10 @@ constexpr int DEFAULT_ARM_LIMIT = 0xFF;
 
 static int update(UPDATE_FUNC_ARGS)
 {
-	auto &part = parts[i];
-	if (part.life)
+ 	if(parts[i].life)
  		return 0;
-	int maxSize = part.tmp ? part.tmp : DEFAULT_LIMIT;
-	int armLimit = part.tmp2 ? part.tmp2 : DEFAULT_ARM_LIMIT;
+ 	int maxSize = parts[i].tmp ? parts[i].tmp : DEFAULT_LIMIT;
+ 	int armLimit = parts[i].tmp2 ? parts[i].tmp2 : DEFAULT_ARM_LIMIT;
  	int state = 0;
 	int directionX = 0, directionY = 0;
 	if (state == PISTON_INACTIVE)
@@ -94,9 +93,8 @@ static int update(UPDATE_FUNC_ARGS)
 					auto r = pmap[y+ry][x+rx];
 					if (!r)
 						continue;
-					int rid = ID(r);
-					if (TYP(r) == PT_SPRK && parts[rid].life == 3) {
-						if (parts[rid].ctype == PT_PSCN)
+					if (TYP(r)==PT_SPRK && parts[ID(r)].life==3) {
+						if(parts[ID(r)].ctype == PT_PSCN)
 							state = PISTON_EXTEND;
 						else
 							state = PISTON_RETRACT;
@@ -116,8 +114,7 @@ static int update(UPDATE_FUNC_ARGS)
 					auto r = pmap[y+ry][x+rx];
 					if (!r)
 						continue;
-					int rid = ID(r);
-					if (TYP(r) == PT_PSTN && !parts[rid].life)
+					if (TYP(r) == PT_PSTN && !parts[ID(r)].life)
 					{
 						bool movedPiston = false;
 						bool foundEnd = false;
@@ -136,8 +133,7 @@ static int update(UPDATE_FUNC_ARGS)
 							r = pmap[y+nyy][x+nxx];
 							if(TYP(r)==PT_PSTN)
 							{
-								rid = ID(r);
-								if (parts[rid].life)
+								if(parts[ID(r)].life)
 									armCount++;
 								else if (armCount)
 								{
@@ -148,14 +144,14 @@ static int update(UPDATE_FUNC_ARGS)
 								}
 								else
 								{
-									pistonCount += int(floor((parts[rid].temp-268.15f)/10));// How many tens of degrees above 0 C, rounded to nearest ten degrees. Can be negative.
+									pistonCount += int(floor((parts[ID(r)].temp-268.15f)/10));// How many tens of degrees above 0 C, rounded to nearest ten degrees. Can be negative.
 								}
 							}
 							else if (nxx==0 && nyy==0)
 							{
 								// compatibility with BAD THINGS: starting PSTN layered underneath other particles
 								// (in v90, it started scanning from the neighbouring particle, so could not break out of loop at offset=(0,0))
-								pistonCount += int(floor((part.temp-268.15f)/10));
+								pistonCount += int(floor((parts[i].temp-268.15f)/10));
 								continue;
 							}
 							else
@@ -171,16 +167,16 @@ static int update(UPDATE_FUNC_ARGS)
 								if(armCount+pistonCount > armLimit)
 									pistonCount = armLimit-armCount;
 								if(pistonCount > 0) {
-									newSpace = MoveStack(sim, pistonEndX, pistonEndY, directionX, directionY, maxSize, pistonCount, false, part.ctype, true);
+									newSpace = MoveStack(sim, pistonEndX, pistonEndY, directionX, directionY, maxSize, pistonCount, false, parts[i].ctype, true);
 									if(newSpace) {
 										//Create new piston section
 										for(int j = 0; j < newSpace; j++) {
 											int nr = sim->create_part(-3, pistonEndX+(nxi*j), pistonEndY+(nyi*j), PT_PSTN);
 											if (nr > -1) {
 												parts[nr].life = 1;
-												if (part.dcolour)
+												if (parts[i].dcolour)
 												{
-													int colour = part.dcolour;
+													int colour=parts[i].dcolour;
 													parts[nr].dcolour=(colour&0xFF000000)|std::max((colour&0xFF0000)-0x3C0000,0)|std::max((colour&0xFF00)-0x3C00,0)|std::max((colour&0xFF)-0x3C,0);
 												}
 											}
@@ -192,7 +188,7 @@ static int update(UPDATE_FUNC_ARGS)
 								if(pistonCount > armCount)
 									pistonCount = armCount;
 								if(armCount && pistonCount > 0) {
-									MoveStack(sim, pistonEndX, pistonEndY, directionX, directionY, maxSize, pistonCount, true, part.ctype, true);
+									MoveStack(sim, pistonEndX, pistonEndY, directionX, directionY, maxSize, pistonCount, true, parts[i].ctype, true);
 									movedPiston = true;
 								}
 							}

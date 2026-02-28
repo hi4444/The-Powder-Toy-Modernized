@@ -49,9 +49,6 @@ void Element::Element_AMTR()
 
 static int update(UPDATE_FUNC_ARGS)
 {
-	auto &part = parts[i];
-	const int cx = x / CELL;
-	const int cy = y / CELL;
 	for (auto rx = -1; rx <= 1; rx++)
 	{
 		for (auto ry = -1; ry <= 1; ry++)
@@ -64,18 +61,17 @@ static int update(UPDATE_FUNC_ARGS)
 				auto rt = TYP(r);
 				if (rt!=PT_AMTR && rt!=PT_DMND && rt!=PT_CLNE && rt!=PT_PCLN && rt!=PT_VOID && rt!=PT_BHOL && rt!=PT_NBHL && rt!=PT_PRTI && rt!=PT_PRTO)
 				{
-					part.life++;
-					if (part.life == 4)
+					parts[i].life++;
+					if (parts[i].life==4)
 					{
 						sim->kill_part(i);
 						return 1;
 					}
-					int rid = ID(r);
 					if (sim->rng.chance(1, 10))
-						sim->create_part(rid, x+rx, y+ry, PT_PHOT);
+						sim->create_part(ID(r), x+rx, y+ry, PT_PHOT);
 					else
-						sim->kill_part(rid);
-					sim->pv[cy][cx] -= 2.0f;
+						sim->kill_part(ID(r));
+					sim->pv[y/CELL][x/CELL] -= 2.0f;
 				}
 			}
 		}

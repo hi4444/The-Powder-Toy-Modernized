@@ -215,7 +215,7 @@ void ElementSearchActivity::OnDraw()
 	g->BlendRect(
 		RectSized(Position + scrollPanel->Position - Vec2{ 1, 1 }, scrollPanel->Size + Vec2{ 2, 2 }),
 		0xFFFFFF_rgb .WithAlpha(180));
-	if (toolTipPresence && !toolTip.empty())
+	if (toolTipPresence && toolTip.length())
 	{
 		g->BlendText({ 10, Size.Y+70 }, toolTip, 0xFFFFFF_rgb .WithAlpha(toolTipPresence>51?255:toolTipPresence*5));
 	}

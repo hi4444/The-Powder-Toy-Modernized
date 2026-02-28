@@ -30,8 +30,6 @@ public:
 	void SetAmbientAirTemperature(float ambientAirTemp);
 	float GetVorticityCoeff();
 	void SetVorticityCoeff(float vorticityCoeff);
-	int GetSimFpsCap();
-	void SetSimFpsCap(int fpsCap);
 	int GetEdgeMode();
 	void SetEdgeMode(int edgeMode);
 	TempScale GetTemperatureScale();

@@ -24,7 +24,7 @@ static int releaseType(lua_State *L)
 static int exeName(lua_State *L)
 {
 	ByteString name = Platform::ExecutableName();
-	if (!name.empty())
+	if (name.length())
 		tpt_lua_pushByteString(L, name);
 	else
 		luaL_error(L, "Error, could not get executable name");

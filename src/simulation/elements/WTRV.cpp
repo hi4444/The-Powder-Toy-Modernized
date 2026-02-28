@@ -48,7 +48,6 @@ void Element::Element_WTRV()
 
 static int update(UPDATE_FUNC_ARGS)
 {
-	auto &part = parts[i];
 	for (auto rx = -1; rx <= 1; rx++)
 	{
 		for (auto ry = -1; ry <= 1; ry++)
@@ -58,17 +57,16 @@ static int update(UPDATE_FUNC_ARGS)
 				auto r = pmap[y+ry][x+rx];
 				if (!r)
 					continue;
-				int typ = TYP(r);
-				if ((typ == PT_RBDM || typ == PT_LRBD) && !sim->legacy_enable && part.temp > (273.15f + 12.0f) && sim->rng.chance(1, 100))
+				if ((TYP(r)==PT_RBDM||TYP(r)==PT_LRBD) && !sim->legacy_enable && parts[i].temp>(273.15f+12.0f) && sim->rng.chance(1, 100))
 				{
 					sim->part_change_type(i,x,y,PT_FIRE);
-					part.life = 4;
-					part.ctype = PT_WATR;
+					parts[i].life = 4;
+					parts[i].ctype = PT_WATR;
 				}
 			}
 		}
 	}
-	if (part.temp > 1273 && part.ctype == PT_FIRE)
-		part.temp -= part.temp / 1000;
+	if(parts[i].temp>1273&&parts[i].ctype==PT_FIRE)
+		parts[i].temp-=parts[i].temp/1000;
 	return 0;
 }

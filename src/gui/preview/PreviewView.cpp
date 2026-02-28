@@ -592,7 +592,7 @@ void PreviewView::submitComment()
 	if (addCommentBox)
 	{
 		String comment = addCommentBox->GetText();
-		if (comment.empty())
+		if (comment.length() == 0)
 		{
 			c->RefreshComments();
 			isRefreshingComments = true;

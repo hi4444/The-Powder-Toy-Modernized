@@ -107,27 +107,26 @@ static int update(UPDATE_FUNC_ARGS)
 
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	auto &part = parts[i];
-	if (part.ctype & 1)
+	if (parts[i].ctype&1)
 	{
 		// reset invalid SOAP links
-		if (!validIndex(part.tmp) || !validIndex(part.tmp2))
+		if (!validIndex(parts[i].tmp) || !validIndex(parts[i].tmp2))
 		{
-			part.tmp = part.tmp2 = part.ctype = 0;
+			parts[i].tmp = parts[i].tmp2 = parts[i].ctype = 0;
 			return 0;
 		}
-		if (part.temp > FREEZING)
+		if (parts[i].temp>FREEZING)
 		{
-			if (part.life <= 0)
+			if (parts[i].life<=0)
 			{
 				//if only connected on one side
-				if ((part.ctype & 6) != 6 && (part.ctype & 6))
+				if ((parts[i].ctype&6) != 6 && (parts[i].ctype&6))
 				{
 					int target = i;
 					//break entire bubble in a loop
-					while ((parts[target].ctype & 6) != 6 && (parts[target].ctype & 6) && parts[target].type == PT_SOAP)
+					while((parts[target].ctype&6) != 6 && (parts[target].ctype&6) && parts[target].type == PT_SOAP)
 					{
-						if (parts[target].ctype & 2)
+						if (parts[target].ctype&2)
 						{
 							target = parts[target].tmp;
 							if (!validIndex(target))
@@ -147,15 +146,15 @@ static int update(UPDATE_FUNC_ARGS)
 						}
 					}
 				}
-				if ((part.ctype & 6) != 6)
-					part.ctype = 0;
-				if (validIndex(part.tmp) && (part.ctype & 6) == 6 && (parts[part.tmp].ctype & 6) == 6 && parts[part.tmp].tmp == i)
+				if ((parts[i].ctype&6) != 6)
+					parts[i].ctype = 0;
+				if (validIndex(parts[i].tmp) && (parts[i].ctype&6) == 6 && (parts[parts[i].tmp].ctype&6) == 6 && parts[parts[i].tmp].tmp == i)
 					Element_SOAP_detach(sim, i);
 			}
-			part.vy = (part.vy - 0.1f) * 0.5f;
-			part.vx *= 0.5f;
+			parts[i].vy = (parts[i].vy-0.1f)*0.5f;
+			parts[i].vx *= 0.5f;
 		}
-		if (!(part.ctype & 2))
+		if(!(parts[i].ctype&2))
 		{
 			for (auto rx = -2; rx <= 2; rx++)
 			{
@@ -166,16 +165,15 @@ static int update(UPDATE_FUNC_ARGS)
 						auto r = pmap[y+ry][x+rx];
 						if (!r)
 							continue;
-						auto rid = ID(r);
-						if ((parts[rid].type == PT_SOAP) && (parts[rid].ctype & 1) && !(parts[rid].ctype & 4))
-							attach(parts, i, rid);
+						if ((parts[ID(r)].type == PT_SOAP) && (parts[ID(r)].ctype&1) && !(parts[ID(r)].ctype&4))
+							attach(parts, i, ID(r));
 					}
 				}
 			}
 		}
 		else
 		{
-			if (part.life <= 0)
+			if (parts[i].life<=0)
 			{
 				for (auto rx = -2; rx <= 2; rx++)
 				{
@@ -186,7 +184,7 @@ static int update(UPDATE_FUNC_ARGS)
 							auto r = pmap[y+ry][x+rx];
 							if (!r && !sim->bmap[(y+ry)/CELL][(x+rx)/CELL])
 								continue;
-							if (part.temp > FREEZING)
+							if (parts[i].temp>FREEZING)
 							{
 								if (sim->bmap[(y+ry)/CELL][(x+rx)/CELL]
 									|| (r && !(elements[TYP(r)].Properties&TYPE_GAS)
@@ -198,26 +196,25 @@ static int update(UPDATE_FUNC_ARGS)
 							}
 							if (TYP(r) == PT_SOAP)
 							{
-								auto rid = ID(r);
-								if (parts[rid].ctype == 1)
+								if (parts[ID(r)].ctype == 1)
 								{
-									int buf = part.tmp;
+									int buf = parts[i].tmp;
 
-									part.tmp = rid;
+									parts[i].tmp = ID(r);
 									if (validIndex(buf) && parts[buf].type == PT_SOAP)
-										parts[buf].tmp2 = rid;
-									parts[rid].tmp2 = i;
-									parts[rid].tmp = buf;
-									parts[rid].ctype = 7;
+										parts[buf].tmp2 = ID(r);
+									parts[ID(r)].tmp2 = i;
+									parts[ID(r)].tmp = buf;
+									parts[ID(r)].ctype = 7;
 								}
-								else if (parts[rid].ctype == 7 && part.tmp != rid && part.tmp2 != rid)
+								else if (parts[ID(r)].ctype == 7 && parts[i].tmp != ID(r) && parts[i].tmp2 != ID(r))
 								{
-									if (validIndex(part.tmp) && parts[part.tmp].type == PT_SOAP)
-										parts[part.tmp].tmp2 = parts[rid].tmp2;
-									if (validIndex(parts[rid].tmp2) && parts[parts[rid].tmp2].type == PT_SOAP)
-										parts[parts[rid].tmp2].tmp = part.tmp;
-									parts[rid].tmp2 = i;
-									part.tmp = rid;
+									if (validIndex(parts[i].tmp) && parts[parts[i].tmp].type == PT_SOAP)
+										parts[parts[i].tmp].tmp2 = parts[ID(r)].tmp2;
+									if (validIndex(parts[ID(r)].tmp2) && parts[parts[ID(r)].tmp2].type == PT_SOAP)
+										parts[parts[ID(r)].tmp2].tmp = parts[i].tmp;
+									parts[ID(r)].tmp2 = i;
+									parts[i].tmp = ID(r);
 								}
 							}
 						}
@@ -225,28 +222,28 @@ static int update(UPDATE_FUNC_ARGS)
 				}
 			}
 		}
-		if ((part.ctype & 2) && validIndex(part.tmp))
+		if(parts[i].ctype&2 && validIndex(parts[i].tmp))
 		{
 			float d, dx, dy;
-			dx = part.x - parts[part.tmp].x;
-			dy = part.y - parts[part.tmp].y;
+			dx = parts[i].x - parts[parts[i].tmp].x;
+			dy = parts[i].y - parts[parts[i].tmp].y;
 			d = 9/(pow(dx, 2)+pow(dy, 2)+9)-0.5;
-			parts[part.tmp].vx -= dx*d;
-			parts[part.tmp].vy -= dy*d;
-			part.vx += dx*d;
-			part.vy += dy*d;
-			if ((parts[part.tmp].ctype&2) && (parts[part.tmp].ctype&1)
-					&& validIndex(parts[part.tmp].tmp)
-					&& (parts[parts[part.tmp].tmp].ctype&2) && (parts[parts[part.tmp].tmp].ctype&1))
+			parts[parts[i].tmp].vx -= dx*d;
+			parts[parts[i].tmp].vy -= dy*d;
+			parts[i].vx += dx*d;
+			parts[i].vy += dy*d;
+			if ((parts[parts[i].tmp].ctype&2) && (parts[parts[i].tmp].ctype&1)
+					&& validIndex(parts[parts[i].tmp].tmp)
+					&& (parts[parts[parts[i].tmp].tmp].ctype&2) && (parts[parts[parts[i].tmp].tmp].ctype&1))
 			{
-				int ii = parts[parts[part.tmp].tmp].tmp;
+				int ii = parts[parts[parts[i].tmp].tmp].tmp;
 				if (validIndex(ii))
 				{
-					dx = parts[ii].x - parts[part.tmp].x;
-					dy = parts[ii].y - parts[part.tmp].y;
+					dx = parts[ii].x - parts[parts[i].tmp].x;
+					dy = parts[ii].y - parts[parts[i].tmp].y;
 					d = 81/(pow(dx, 2)+pow(dy, 2)+81)-0.5;
-					parts[part.tmp].vx -= dx*d*0.5f;
-					parts[part.tmp].vy -= dy*d*0.5f;
+					parts[parts[i].tmp].vx -= dx*d*0.5f;
+					parts[parts[i].tmp].vy -= dy*d*0.5f;
 					parts[ii].vx += dx*d*0.5f;
 					parts[ii].vy += dy*d*0.5f;
 				}
@@ -255,10 +252,10 @@ static int update(UPDATE_FUNC_ARGS)
 	}
 	else
 	{
-		if (sim->pv[y/CELL][x/CELL] > 0.5f || sim->pv[y/CELL][x/CELL] < (-0.5f))
+		if (sim->pv[y/CELL][x/CELL]>0.5f || sim->pv[y/CELL][x/CELL]<(-0.5f))
 		{
-			part.ctype = 1;
-			part.life = 10;
+			parts[i].ctype = 1;
+			parts[i].life = 10;
 		}
 
 		//SOAP+OIL foam effect
@@ -275,11 +272,10 @@ static int update(UPDATE_FUNC_ARGS)
 
 						sim->GetGravityField(x, y, elements[PT_SOAP].Gravity, 1.0f, gx, gy);
 
-						auto rid = ID(r);
-						ax = ((part.vx - gx) * 0.5f + parts[rid].vx) / 2;
-						ay = ((part.vy - gy) * 0.5f + parts[rid].vy) / 2;
-						part.vx = parts[rid].vx = ax;
-						part.vy = parts[rid].vy = ay;
+						ax = ((parts[i].vx-gx)*0.5f + parts[ID(r)].vx)/2;
+						ay = ((parts[i].vy-gy)*0.5f + parts[ID(r)].vy)/2;
+						parts[i].vx = parts[ID(r)].vx = ax;
+						parts[i].vy = parts[ID(r)].vy = ay;
 					}
 				}
 	}
@@ -294,16 +290,15 @@ static int update(UPDATE_FUNC_ARGS)
 					continue;
 				if (TYP(r)!=PT_SOAP)
 				{
-					auto rid = ID(r);
-					auto tr = float((parts[rid].dcolour>>16)&0xFF);
-					auto tg = float((parts[rid].dcolour>>8)&0xFF);
-					auto tb = float((parts[rid].dcolour)&0xFF);
-					auto ta = float((parts[rid].dcolour>>24)&0xFF);
+					auto tr = float((parts[ID(r)].dcolour>>16)&0xFF);
+					auto tg = float((parts[ID(r)].dcolour>>8)&0xFF);
+					auto tb = float((parts[ID(r)].dcolour)&0xFF);
+					auto ta = float((parts[ID(r)].dcolour>>24)&0xFF);
 					auto nr = int(tr*BLEND);
 					auto ng = int(tg*BLEND);
 					auto nb = int(tb*BLEND);
 					auto na = int(ta*BLEND);
-					parts[rid].dcolour = nr<<16 | ng<<8 | nb | na<<24;
+					parts[ID(r)].dcolour = nr<<16 | ng<<8 | nb | na<<24;
 				}
 			}
 		}

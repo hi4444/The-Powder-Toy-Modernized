@@ -193,7 +193,7 @@ void ServerSaveActivity::NotifyDone(Task * task)
 
 void ServerSaveActivity::Save()
 {
-	if (nameField->GetText().empty())
+	if (!nameField->GetText().length())
 	{
 		new ErrorMessage("Error", "You must specify a save name.");
 		return;
@@ -350,7 +350,7 @@ void ServerSaveActivity::ShowRules()
 void ServerSaveActivity::CheckName(String newname)
 {
 	auto user = Client::Ref().GetAuthUser();
-	if (!newname.empty() && newname == save->GetName() && user && save->GetUserName() == user->Username)
+	if (newname.length() && newname == save->GetName() && user && save->GetUserName() == user->Username)
 		titleLabel->SetText("Modify simulation properties:");
 	else
 		titleLabel->SetText("Upload new simulation:");

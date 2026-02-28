@@ -21,7 +21,7 @@ ConsoleController::ConsoleController(std::function<void ()> onDone_, CommandInte
 
 void ConsoleController::EvaluateCommand(String command)
 {
-	if(!command.empty())
+	if(command.length())
 	{
 		if (command.BeginsWith("!load "))
 			CloseConsole();

@@ -154,7 +154,7 @@ void FileBrowserActivity::RenameSave(int index)
 	new TextPrompt("Rename", "Change save name", files[index]->GetDisplayName(), "", 0, { [this, index](const String &input) {
 		auto &file = files[index];
 		auto newName = input.ToUtf8();
-		if (!newName.empty())
+		if (newName.length())
 		{
 			newName = ByteString::Build(directory, PATH_SEP_CHAR, newName, ".cps");
 			if (!Platform::RenameFile(file->GetName(), newName, false))

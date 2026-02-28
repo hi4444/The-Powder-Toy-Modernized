@@ -79,14 +79,14 @@ public:
 	{
 		if(x >= splitPosition || !showSplit)
 		{
-			if(!toolTip2.empty() && GetParentWindow())
+			if(toolTip2.length()>0 && GetParentWindow())
 			{
 				GetParentWindow()->ToolTip(Position, toolTip2);
 			}
 		}
 		else if(x < splitPosition)
 		{
-			if(!toolTip.empty() && GetParentWindow())
+			if(toolTip.length()>0 && GetParentWindow())
 			{
 				GetParentWindow()->ToolTip(Position, toolTip);
 			}
@@ -2643,7 +2643,7 @@ void GameView::OnDraw()
 		g->BlendTextOutline({ (XRES - (Graphics::TextSize(infoTip).X - 1)) / 2, YRES / 2 - 2 }, infoTip, 0xFFFFFF_rgb .WithAlpha(infoTipAlpha));
 	}
 
-	if(toolTipPresence && toolTipPosition.X!=-1 && toolTipPosition.Y!=-1 && !toolTip.empty())
+	if(toolTipPresence && toolTipPosition.X!=-1 && toolTipPosition.Y!=-1 && toolTip.length())
 	{
 		if (toolTipPosition.Y == Size.Y-MENUSIZE-10)
 			g->BlendTextOutline(toolTipPosition, toolTip, 0xFFFFFF_rgb .WithAlpha(toolTipPresence>51?255:toolTipPresence*5));

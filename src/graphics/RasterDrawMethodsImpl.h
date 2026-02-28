@@ -257,8 +257,7 @@ Vec2<int> RasterDrawMethods<Derived>::BlendText(Vec2<int> orig_pos, String const
 	RGB colour = orig_colour.NoAlpha();
 	uint8_t alpha = orig_colour.Alpha;
 	Vec2<int> pos = orig_pos;
-	size_t const length = str.length();
-	for (size_t i = 0; i < length; i++)
+	for (size_t i = 0; i < str.length(); i++)
 	{
 		if (str[i] == '\n')
 		{
@@ -267,7 +266,7 @@ Vec2<int> RasterDrawMethods<Derived>::BlendText(Vec2<int> orig_pos, String const
 		}
 		else if (str[i] == '\x0F')
 		{
-			if (length <= i + 3)
+			if (str.length() <= i + 3)
 				break;
 			colour.Red = str[i + 1];
 			colour.Green = str[i + 2];
@@ -285,7 +284,7 @@ Vec2<int> RasterDrawMethods<Derived>::BlendText(Vec2<int> orig_pos, String const
 		}
 		else if (str[i] == '\b')
 		{
-			if (length <= i + 1)
+			if (str.length() <= i + 1)
 				break;
 			bool colourCode = true;
 			switch (str[i + 1])
@@ -345,8 +344,7 @@ Vec2<int> RasterDrawMethods<Derived>::TextSize(String const &str)
 {
 	Vec2<int> size = Vec2(0, FONT_H - 2);
 	int curX = 0; // characters have 1px of spacing between them
-	size_t const length = str.length();
-	for (size_t i = 0; i < length; i++)
+	for (size_t i = 0; i < str.length(); i++)
 	{
 		if (str[i] == '\n')
 		{
@@ -356,7 +354,7 @@ Vec2<int> RasterDrawMethods<Derived>::TextSize(String const &str)
 		}
 		else if (str[i] == '\x0F')
 		{
-			if (length <= i + 3)
+			if (str.length() <= i + 3)
 				break;
 			i += 3;
 		}
@@ -366,7 +364,7 @@ Vec2<int> RasterDrawMethods<Derived>::TextSize(String const &str)
 			continue;
 		else if (str[i] == '\b')
 		{
-			if (length <= i + 1)
+			if (str.length() <= i + 1)
 				break;
 			i++;
 		}
@@ -381,14 +379,13 @@ template<typename Derived>
 String::const_iterator RasterDrawMethods<Derived>::TextFit(String const &str, int width)
 {
 	int curX = 0;
-	size_t const length = str.length();
-	for (size_t i = 0; i < length; i++)
+	for (size_t i = 0; i < str.length(); i++)
 	{
 		if (str[i] == '\n')
 			curX = 0;
 		else if (str[i] == '\x0F')
 		{
-			if (length <= i + 3)
+			if (str.length() <= i + 3)
 				break;
 			i += 3;
 		}
@@ -398,7 +395,7 @@ String::const_iterator RasterDrawMethods<Derived>::TextFit(String const &str, in
 			continue;
 		else if (str[i] == '\b')
 		{
-			if (length <= i + 1)
+			if (str.length() <= i + 1)
 				break;
 			i++;
 		}

@@ -546,7 +546,7 @@ int CommandInterface::Command(String command)
 			SetLastError(lastError);
 			lsi->luacon_hasLastError = true;
 		};
-		if (!lsi->lastCode.empty())
+		if (lsi->lastCode.length())
 			lsi->lastCode += "\n";
 		lsi->lastCode += command;
 		ByteString tmp = ("return " + lsi->lastCode).ToUtf8();
@@ -592,9 +592,9 @@ int CommandInterface::Command(String command)
 					}
 					lua_pop(L, 1);
 				}
-				if (!text.empty())
+				if (text.length())
 				{
-					if (!lastError.empty())
+					if (lastError.length())
 						lastError += "; " + text;
 					else
 						lastError = text;

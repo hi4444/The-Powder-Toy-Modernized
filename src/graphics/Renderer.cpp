@@ -28,8 +28,7 @@ void Renderer::RenderSimulation()
 
 	if (displayMode & DISPLAY_PERS)
 	{
-		auto const *videoBegin = video.data();
-		std::transform(videoBegin, videoBegin + WINDOWW * YRES, persistentVideo.begin(), [](pixel p) {
+		std::transform(video.RowIterator({ 0, 0 }), video.RowIterator({ 0, YRES }), persistentVideo.begin(), [](pixel p) {
 			return RGB::Unpack(p).Decay().Pack();
 		});
 	}
@@ -59,29 +58,21 @@ void Renderer::ApproximateAccumulation()
 
 void Renderer::render_gravlensing(const RendererFrame &source)
 {
-	auto const renderBounds = RES.OriginRect();
-	auto const &forceX = sim->gravOut.forceX;
-	auto const &forceY = sim->gravOut.forceY;
-	for (auto p : renderBounds)
+	for (auto p : RES.OriginRect())
 	{
 		auto cp = p / CELL;
-		auto fx = forceX[cp];
-		auto fy = forceY[cp];
-		auto rp = Vec2{ int(p.X - fx * 0.75f  + 0.5f), int(p.Y - fy * 0.75f  + 0.5f) };
-		auto gp = Vec2{ int(p.X - fx * 0.875f + 0.5f), int(p.Y - fy * 0.875f + 0.5f) };
-		auto bp = Vec2{ int(p.X - fx          + 0.5f), int(p.Y - fy          + 0.5f) };
-		if (renderBounds.Contains(rp) &&
-		    renderBounds.Contains(gp) &&
-		    renderBounds.Contains(bp))
+		auto rp = Vec2{ int(p.X - sim->gravOut.forceX[cp] * 0.75f  + 0.5f), int(p.Y - sim->gravOut.forceY[cp] * 0.75f  + 0.5f) };
+		auto gp = Vec2{ int(p.X - sim->gravOut.forceX[cp] * 0.875f + 0.5f), int(p.Y - sim->gravOut.forceY[cp] * 0.875f + 0.5f) };
+		auto bp = Vec2{ int(p.X - sim->gravOut.forceX[cp]          + 0.5f), int(p.Y - sim->gravOut.forceY[cp]          + 0.5f) };
+		if (RES.OriginRect().Contains(rp) &&
+		    RES.OriginRect().Contains(gp) &&
+		    RES.OriginRect().Contains(bp))
 		{
 			auto v = RGB::Unpack(video[p]);
-			auto rv = RGB::Unpack(source[rp]);
-			auto gv = RGB::Unpack(source[gp]);
-			auto bv = RGB::Unpack(source[bp]);
 			video[p] = RGB(
-				std::min(0xFF, rv.Red + v.Red),
-				std::min(0xFF, gv.Green + v.Green),
-				std::min(0xFF, bv.Blue + v.Blue)
+				std::min(0xFF, RGB::Unpack(source[rp]).Red   + v.Red  ),
+				std::min(0xFF, RGB::Unpack(source[gp]).Green + v.Green),
+				std::min(0xFF, RGB::Unpack(source[bp]).Blue  + v.Blue )
 			).Pack();
 		}
 	}
@@ -220,10 +211,10 @@ std::unique_ptr<VideoBuffer> Renderer::WallIcon(int wallID, Vec2<int> size)
 void Renderer::DrawSigns()
 {
 	int x, y, w, h;
-	auto const &signs = sim->signs;
-	for (auto const &currentSign : signs)
+	std::vector<sign> signs = sim->signs;
+	for (auto &currentSign : signs)
 	{
-		if (!currentSign.text.empty())
+		if (currentSign.text.length())
 		{
 			String text = currentSign.getDisplayText(sim, x, y, w, h);
 			DrawFilledRect(RectSized(Vec2{ x + 1, y + 1 }, Vec2{ w, h - 1 }), 0x000000_rgb);
@@ -243,8 +234,8 @@ void Renderer::DrawSigns()
 					y += dy;
 				}
 			}
+		}
 	}
-}
 }
 
 void Renderer::render_parts()
@@ -265,49 +256,41 @@ void Renderer::render_parts()
 	auto &parts = sim->parts;
 	if (gridSize)//draws the grid
 	{
-		auto gridColour = 0x646464_rgb .WithAlpha(80);
-		int const gridStep = 4 * gridSize;
-		for (ny = 0; ny < YRES; ny += gridStep)
-			for (nx = 0; nx < XRES; nx++)
-				BlendPixel({ nx, ny }, gridColour);
-		for (nx = 0; nx < XRES; nx += gridStep)
-			for (int segmentStart = 0; segmentStart < YRES; segmentStart += gridStep)
-				for (ny = segmentStart + 1; ny < std::min(segmentStart + gridStep, YRES); ny++)
-					BlendPixel({ nx, ny }, gridColour);
+		for (ny=0; ny<YRES; ny++)
+			for (nx=0; nx<XRES; nx++)
+			{
+				if (ny%(4*gridSize) == 0)
+					BlendPixel({ nx, ny }, 0x646464_rgb .WithAlpha(80));
+				if (nx%(4*gridSize) == 0 && ny%(4*gridSize) != 0)
+					BlendPixel({ nx, ny }, 0x646464_rgb .WithAlpha(80));
+			}
 	}
 	stats.foundParticles = 0;
-	auto const hasFindingElement = bool(findingElement);
-	auto const partsActive = sim->parts.active;
-	for (i = 0; i < partsActive; i++)
-	{
-		auto &part = parts[i];
-		t = part.type;
-		if (t <= 0 || t >= PT_NUM)
-		{
-			continue;
-		}
+	for(i = 0; i < sim->parts.active; i++) {
+		if (sim->parts[i].type && sim->parts[i].type >= 0 && sim->parts[i].type < PT_NUM) {
+			t = sim->parts[i].type;
 
-		nx = int(part.x + 0.5f);
-		ny = int(part.y + 0.5f);
+			nx = (int)(sim->parts[i].x+0.5f);
+			ny = (int)(sim->parts[i].y+0.5f);
 
-		if(nx >= XRES || nx < 0 || ny >= YRES || ny < 0)
-			continue;
-		if(TYP(sim->photons[ny][nx]) && !(elements[t].Properties & TYPE_ENERGY) && t!=PT_STKM && t!=PT_STKM2 && t!=PT_FIGH)
-			continue;
+			if(nx >= XRES || nx < 0 || ny >= YRES || ny < 0)
+				continue;
+			if(TYP(sim->photons[ny][nx]) && !(elements[t].Properties & TYPE_ENERGY) && t!=PT_STKM && t!=PT_STKM2 && t!=PT_FIGH)
+				continue;
 
-		//Defaults
-		pixel_mode = 0 | PMODE_FLAT;
-		cola = 255;
-		RGB colour = elements[t].Colour;
-		colr = colour.Red;
-		colg = colour.Green;
-		colb = colour.Blue;
-		firer = fireg = fireb = firea = 0;
+			//Defaults
+			pixel_mode = 0 | PMODE_FLAT;
+			cola = 255;
+			RGB colour = elements[t].Colour;
+			colr = colour.Red;
+			colg = colour.Green;
+			colb = colour.Blue;
+			firer = fireg = fireb = firea = 0;
 
-		deca = (part.dcolour>>24)&0xFF;
-		decr = (part.dcolour>>16)&0xFF;
-		decg = (part.dcolour>>8)&0xFF;
-		decb = (part.dcolour)&0xFF;
+			deca = (sim->parts[i].dcolour>>24)&0xFF;
+			decr = (sim->parts[i].dcolour>>16)&0xFF;
+			decg = (sim->parts[i].dcolour>>8)&0xFF;
+			decb = (sim->parts[i].dcolour)&0xFF;
 
 			if (decorationLevel == decorationAntiClickbait)
 			{
@@ -320,47 +303,47 @@ void Renderer::render_parts()
 				}
 			}
 
-		{
-			if (graphicscache[t].isready)
 			{
-				pixel_mode = graphicscache[t].pixel_mode;
-				cola = graphicscache[t].cola;
-				colr = graphicscache[t].colr;
-				colg = graphicscache[t].colg;
-				colb = graphicscache[t].colb;
-				firea = graphicscache[t].firea;
-				firer = graphicscache[t].firer;
-				fireg = graphicscache[t].fireg;
-				fireb = graphicscache[t].fireb;
-			}
-			else if(!(colorMode & COLOUR_BASC))
-			{
-				auto *graphics = elements[t].Graphics;
-				auto makeReady = !graphics || graphics(gfctx, &part, nx, ny, &pixel_mode, &cola, &colr, &colg, &colb, &firea, &firer, &fireg, &fireb); //That's a lot of args, a struct might be better
-				if (makeReady && sim->useLuaCallbacks)
+				if (graphicscache[t].isready)
 				{
-					// useLuaCallbacks is true so we locked sd.elementGraphicsMx exclusively
-					auto &wgraphicscache = SimulationData::Ref().graphicscache;
-					wgraphicscache[t].isready = 1;
-					wgraphicscache[t].pixel_mode = pixel_mode;
-					wgraphicscache[t].cola = cola;
-					wgraphicscache[t].colr = colr;
-					wgraphicscache[t].colg = colg;
-					wgraphicscache[t].colb = colb;
-					wgraphicscache[t].firea = firea;
-					wgraphicscache[t].firer = firer;
-					wgraphicscache[t].fireg = fireg;
-					wgraphicscache[t].fireb = fireb;
+					pixel_mode = graphicscache[t].pixel_mode;
+					cola = graphicscache[t].cola;
+					colr = graphicscache[t].colr;
+					colg = graphicscache[t].colg;
+					colb = graphicscache[t].colb;
+					firea = graphicscache[t].firea;
+					firer = graphicscache[t].firer;
+					fireg = graphicscache[t].fireg;
+					fireb = graphicscache[t].fireb;
 				}
-			}
-			if((elements[t].Properties & PROP_HOT_GLOW) && part.temp>(elements[t].HighTemperature-800.0f))
-			{
-				auto gradv = 3.1415/(2*elements[t].HighTemperature-(elements[t].HighTemperature-800.0f));
-				auto caddress = int((part.temp>elements[t].HighTemperature)?elements[t].HighTemperature-(elements[t].HighTemperature-800.0f):part.temp-(elements[t].HighTemperature-800.0f));
-				colr += int(sin(gradv*caddress) * 226);
-				colg += int(sin(gradv*caddress*4.55 +TPT_PI_DBL) * 34);
-				colb += int(sin(gradv*caddress*2.22 +TPT_PI_DBL) * 64);
-			}
+				else if(!(colorMode & COLOUR_BASC))
+				{
+					auto *graphics = elements[t].Graphics;
+					auto makeReady = !graphics || graphics(gfctx, &(sim->parts[i]), nx, ny, &pixel_mode, &cola, &colr, &colg, &colb, &firea, &firer, &fireg, &fireb); //That's a lot of args, a struct might be better
+					if (makeReady && sim->useLuaCallbacks)
+					{
+						// useLuaCallbacks is true so we locked sd.elementGraphicsMx exclusively
+						auto &wgraphicscache = SimulationData::Ref().graphicscache;
+						wgraphicscache[t].isready = 1;
+						wgraphicscache[t].pixel_mode = pixel_mode;
+						wgraphicscache[t].cola = cola;
+						wgraphicscache[t].colr = colr;
+						wgraphicscache[t].colg = colg;
+						wgraphicscache[t].colb = colb;
+						wgraphicscache[t].firea = firea;
+						wgraphicscache[t].firer = firer;
+						wgraphicscache[t].fireg = fireg;
+						wgraphicscache[t].fireb = fireb;
+					}
+				}
+				if((elements[t].Properties & PROP_HOT_GLOW) && sim->parts[i].temp>(elements[t].HighTemperature-800.0f))
+				{
+					auto gradv = 3.1415/(2*elements[t].HighTemperature-(elements[t].HighTemperature-800.0f));
+					auto caddress = int((sim->parts[i].temp>elements[t].HighTemperature)?elements[t].HighTemperature-(elements[t].HighTemperature-800.0f):sim->parts[i].temp-(elements[t].HighTemperature-800.0f));
+					colr += int(sin(gradv*caddress) * 226);
+					colg += int(sin(gradv*caddress*4.55 +TPT_PI_DBL) * 34);
+					colb += int(sin(gradv*caddress*2.22 +TPT_PI_DBL) * 64);
+				}
 
 				if((pixel_mode & FIRE_ADD) && !(renderMode & FIRE_ADD))
 					pixel_mode |= PMODE_GLOW;
@@ -379,7 +362,7 @@ void Renderer::render_parts()
 				if(colorMode & COLOUR_HEAT)
 				{
 					firea = 255;
-					RGB color = heatTableAt(int((part.temp - stats.hdispLimitMin) / (stats.hdispLimitMax - stats.hdispLimitMin) * 1024));
+					RGB color = heatTableAt(int((sim->parts[i].temp - stats.hdispLimitMin) / (stats.hdispLimitMax - stats.hdispLimitMin) * 1024));
 					firer = colr = color.Red;
 					fireg = colg = color.Green;
 					fireb = colb = color.Blue;
@@ -394,10 +377,10 @@ void Renderer::render_parts()
 				else if(colorMode & COLOUR_LIFE)
 				{
 					auto gradv = 0.4f;
-					if (!(part.life<5))
-						q = int(sqrt((float)part.life));
+					if (!(sim->parts[i].life<5))
+						q = int(sqrt((float)sim->parts[i].life));
 					else
-						q = part.life;
+						q = sim->parts[i].life;
 					colr = colg = colb = int(sin(gradv*q) * 100 + 128);
 					cola = 255;
 					if(pixel_mode & (FIREMODE | PMODE_GLOW))
@@ -437,7 +420,7 @@ void Renderer::render_parts()
 				if (colorMode & COLOUR_GRAD)
 				{
 					auto frequency = 0.05f;
-					auto q = int(part.temp-40);
+					auto q = int(sim->parts[i].temp-40);
 					colr = int(sin(frequency*q) * 16 + colr);
 					colg = int(sin(frequency*q) * 16 + colg);
 					colb = int(sin(frequency*q) * 16 + colb);
@@ -464,15 +447,15 @@ void Renderer::render_parts()
 				else if(firea<0) firea = 0;
 
 				auto matchesFindingElement = false;
-				if (hasFindingElement)
+				if (findingElement)
 				{
 					if (findingElement->property.Offset == offsetof(Particle, type))
 					{
 						auto ft = std::get<int>(findingElement->value);
-						matchesFindingElement = part.type == TYP(ft);
+						matchesFindingElement = parts[i].type == TYP(ft);
 						if (ID(ft))
 						{
-							matchesFindingElement &= part.ctype == ID(ft);
+							matchesFindingElement &= parts[i].ctype == ID(ft);
 						}
 					}
 					else
@@ -480,16 +463,16 @@ void Renderer::render_parts()
 						switch (findingElement->property.Type)
 						{
 						case StructProperty::Float:
-							matchesFindingElement = *((float*)(((char*)&part)+findingElement->property.Offset)) == std::get<float>(findingElement->value);
+							matchesFindingElement = *((float*)(((char*)&sim->parts[i])+findingElement->property.Offset)) == std::get<float>(findingElement->value);
 							break;
 
 						case StructProperty::ParticleType:
 						case StructProperty::Integer:
-							matchesFindingElement = *((int*)(((char*)&part)+findingElement->property.Offset)) == std::get<int>(findingElement->value);
+							matchesFindingElement = *((int*)(((char*)&sim->parts[i])+findingElement->property.Offset)) == std::get<int>(findingElement->value);
 							break;
 
 						case StructProperty::UInteger:
-							matchesFindingElement = *((unsigned int*)(((char*)&part)+findingElement->property.Offset)) == std::get<unsigned int>(findingElement->value);
+							matchesFindingElement = *((unsigned int*)(((char*)&sim->parts[i])+findingElement->property.Offset)) == std::get<unsigned int>(findingElement->value);
 							break;
 
 						default:
@@ -519,8 +502,8 @@ void Renderer::render_parts()
 				{
 					if (t==PT_SOAP)
 					{
-						if ((part.ctype&3) == 3 && part.tmp >= 0 && part.tmp < NPART)
-							BlendLine({ nx, ny }, { int(parts[part.tmp].x+0.5f), int(parts[part.tmp].y+0.5f) }, RGBA(colr, colg, colb, cola));
+						if ((parts[i].ctype&3) == 3 && parts[i].tmp >= 0 && parts[i].tmp < NPART)
+							BlendLine({ nx, ny }, { int(parts[parts[i].tmp].x+0.5f), int(parts[parts[i].tmp].y+0.5f) }, RGBA(colr, colg, colb, cola));
 					}
 				}
 				if(pixel_mode & PSPEC_STICKMAN)
@@ -531,15 +514,15 @@ void Renderer::render_parts()
 						cplayer = &sim->player;
 					else if(t==PT_STKM2)
 						cplayer = &sim->player2;
-					else if (t==PT_FIGH && part.tmp >= 0 && part.tmp < MAX_FIGHTERS)
-						cplayer = &sim->fighters[(unsigned char)part.tmp];
+					else if (t==PT_FIGH && sim->parts[i].tmp >= 0 && sim->parts[i].tmp < MAX_FIGHTERS)
+						cplayer = &sim->fighters[(unsigned char)sim->parts[i].tmp];
 					else
 						continue;
 
 					if (mousePos.X>(nx-3) && mousePos.X<(nx+3) && mousePos.Y<(ny+3) && mousePos.Y>(ny-3)) //If mouse is in the head
 					{
-						String hp = String::Build(Format::Width(part.life, 3));
-						BlendText(mousePos + Vec2{ -8-2*(part.life<100)-2*(part.life<10), -12 }, hp, 0xFFFFFF_rgb .WithAlpha(255));
+						String hp = String::Build(Format::Width(sim->parts[i].life, 3));
+						BlendText(mousePos + Vec2{ -8-2*(sim->parts[i].life<100)-2*(sim->parts[i].life<10), -12 }, hp, 0xFFFFFF_rgb .WithAlpha(255));
 					}
 
 					if (matchesFindingElement)
@@ -595,7 +578,7 @@ void Renderer::render_parts()
 						legb = 255;
 					}
 
-					if (hasFindingElement && !matchesFindingElement)
+					if (findingElement && !matchesFindingElement)
 					{
 						colr /= 10;
 						colg /= 10;
@@ -715,7 +698,7 @@ void Renderer::render_parts()
 				if(pixel_mode & PMODE_SPARK)
 				{
 					auto flicker = float(gfctx.rng()%20);
-					auto gradv = 4 * part.life + flicker;
+					auto gradv = 4*sim->parts[i].life + flicker;
 					for (x = 0; (gradv>0.5) && (drawing_budget > 0); x++) {
 						auto col = RGBA(
 							std::min(0xFF, colr * int(gradv) / 255),
@@ -733,7 +716,7 @@ void Renderer::render_parts()
 				if(pixel_mode & PMODE_FLARE)
 				{
 					auto flicker = float(gfctx.rng()%20);
-					auto gradv = flicker + fabs(part.vx) * 17 + fabs(part.vy) * 17;
+					auto gradv = flicker + fabs(parts[i].vx)*17 + fabs(sim->parts[i].vy)*17;
 					BlendPixel({ nx, ny }, RGBA(colr, colg, colb, int((gradv*4)>255?255:(gradv*4)) ));
 					BlendPixel({ nx+1, ny }, RGBA(colr, colg, colb,int( (gradv*2)>255?255:(gradv*2)) ));
 					BlendPixel({ nx-1, ny }, RGBA(colr, colg, colb, int((gradv*2)>255?255:(gradv*2)) ));
@@ -865,11 +848,13 @@ void Renderer::render_parts()
 					fire_b[ny/CELL][nx/CELL] = (firea*fireb + (255-firea)*fire_b[ny/CELL][nx/CELL]) >> 8;
 				}
 			}
+		}
 	}
 }
 
 void Renderer::draw_other() // EMP effect
 {
+	int i, j;
 	int emp_decor = sim->emp_decor;
 	if (emp_decor>40) emp_decor = 40;
 	if (emp_decor<0) emp_decor = 0;
@@ -883,7 +868,11 @@ void Renderer::draw_other() // EMP effect
 		if (g>255) g=255;
 		if (b>255) g=255;
 		if (a>255) a=255;
-		BlendFilledRect(RES.OriginRect(), RGBA(r, g, b, a));
+		for (j=0; j<YRES; j++)
+			for (i=0; i<XRES; i++)
+			{
+				BlendPixel({ i, j }, RGBA(r, g, b, a));
+			}
 	}
 }
 
@@ -924,11 +913,10 @@ void Renderer::draw_grav()
 		}
 		auto np = Vec2{ float(p.X * CELL), float(p.Y * CELL) };
 		auto dist = agx + agy;
-		auto gravColour = 0xFFFFFF_rgb .WithAlpha(int(dist * 20.0f));
 		for (auto i = 0; i < 4; ++i)
 		{
 			np -= Vec2{ gx * 0.5f, gy * 0.5f };
-			AddPixel({ int(np.X + 0.5f), int(np.Y + 0.5f) }, gravColour);
+			AddPixel({ int(np.X + 0.5f), int(np.Y + 0.5f) }, 0xFFFFFF_rgb .WithAlpha(int(dist * 20.0f)));
 		}
 	}
 }
@@ -939,7 +927,7 @@ void Renderer::draw_air()
 		return;
 	if(!(displayMode & DISPLAY_AIR))
 		return;
-	int x, y, j;
+	int x, y, i, j;
 	auto *pv = sim->pv;
 	auto *hv = sim->hv;
 	auto *vx = sim->vx;
@@ -1002,11 +990,7 @@ void Renderer::draw_air()
 			}
 			else if (displayMode & DISPLAY_AIRW)
 			{
-				float w = 0.0f;
-				if (x > 1 && x < XCELLS - 2 && y > 1 && y < YCELLS - 2)
-				{
-					w = 2.0f * (vy[y][x + 1] - vy[y][x - 1] - (vx[y + 1][x] - vx[y - 1][x]));
-				}
+				auto w = 4*Air::vorticity(*sim, y, x);
 				if (w > 0.0f)
 					c = RGB(clamp_flt(w, 0.0f, 8.0f), 0, 0); //positive vorticity is red
 				else
@@ -1018,11 +1002,9 @@ void Renderer::draw_air()
 				c.Green /= 10;
 				c.Blue  /= 10;
 			}
-			auto packed = c.Pack();
-			int cellBaseX = x * CELL;
-			int cellBaseY = y * CELL;
-			for (j = 0; j < CELL; j++)//draws the colors
-				std::fill_n(video.RowIterator(Vec2(cellBaseX, cellBaseY + j)), CELL, packed);
+			for (j=0; j<CELL; j++)//draws the colors
+				for (i=0; i<CELL; i++)
+					video[{ x * CELL + i, y * CELL + j }] = c.Pack();
 		}
 }
 
@@ -1293,17 +1275,14 @@ void Renderer::render_fire()
 			g = fire_g[j][i];
 			b = fire_b[j][i];
 			if (r || g || b)
-			{
-				RGB fireColour(r, g, b);
 				for (y=-CELL; y<2*CELL; y++)
 					for (x=-CELL; x<2*CELL; x++)
 					{
 						a = fire_alpha[y+CELL][x+CELL];
 						if (findingElement)
 							a /= 2;
-						AddFirePixel({ i*CELL+x, j*CELL+y }, fireColour, a);
+						AddFirePixel({ i*CELL+x, j*CELL+y }, RGB(r, g, b), a);
 					}
-			}
 			r *= 8;
 			g *= 8;
 			b *= 8;

@@ -89,21 +89,6 @@ GameController::GameController():
 
 	gameView->AttachController(this);
 	gameModel->AddObserver(gameView);
-	{
-		int simFpsCap = GlobalPrefs::Ref().Get("Simulation.FpsCap", 60);
-		if (simFpsCap <= 0)
-		{
-			gameView->SetSimFpsLimit(FpsLimitNone{});
-		}
-		else
-		{
-			if (simFpsCap < 2)
-			{
-				simFpsCap = 2;
-			}
-			gameView->SetSimFpsLimit(FpsLimitExplicit{ float(simFpsCap) });
-		}
-	}
 
 	gameView->SetDebugHUD(GlobalPrefs::Ref().Get("Renderer.DebugMode", false));
 
@@ -481,7 +466,7 @@ ByteString GameController::StampRegion(ui::Point point1, ui::Point point2, bool 
 	{
 		newSave->paused = gameModel->GetPaused();
 		ByteString stampName = Client::Ref().AddStamp(std::move(newSave));
-		if (stampName.empty())
+		if (stampName.length() == 0)
 			new ErrorMessage("Could not create stamp", "Error serializing save file");
 		return stampName;
 	}
@@ -750,7 +735,7 @@ void GameController::Tick()
 		}
 		firstTick = false;
 	}
-	if (!gameModel->SelectNextIdentifier.empty())
+	if (gameModel->SelectNextIdentifier.length())
 	{
 		gameModel->BuildMenus();
 		gameModel->SetActiveTool(gameModel->SelectNextTool, gameModel->GetToolFromIdentifier(gameModel->SelectNextIdentifier));
@@ -1224,7 +1209,7 @@ void GameController::OpenSearch(String searchText)
 				}
 			}
 		});
-	if (!searchText.empty())
+	if (searchText.length())
 		search->DoSearch2(searchText);
 	ui::Engine::Ref().ShowWindow(search->GetView());
 }
@@ -1687,7 +1672,7 @@ void GameController::NotifyUpdateAvailable(Client * sender)
 				updateMessage << info.major << "." << info.minor << " Stable, Build " << info.build;
 			}
 
-			if (!info.changeLog.empty())
+			if (info.changeLog.length())
 				updateMessage << "\n\nChangelog:\n" << info.changeLog;
 
 			new ConfirmPrompt("Run Updater", updateMessage.Build(), { [this, info] { c->RunUpdater(info); } });

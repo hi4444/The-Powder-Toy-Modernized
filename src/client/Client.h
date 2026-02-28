@@ -56,7 +56,7 @@ private:
 	void notifyUpdateAvailable();
 	void notifyAuthUserChanged();
 	void notifyMessageOfTheDay();
-	void notifyNewNotification(ServerNotification const &notification);
+	void notifyNewNotification(ServerNotification notification);
 
 	// Save stealing info
 	Bson authors;
@@ -92,10 +92,10 @@ public:
 	ByteString FileOpenDialogue();
 	//std::string FileSaveDialogue();
 
-	void AddServerNotification(ServerNotification const &notification);
+	void AddServerNotification(ServerNotification notification);
 	std::vector<ServerNotification> GetServerNotifications();
 
-	void SetMessageOfTheDay(String const &message);
+	void SetMessageOfTheDay(String message);
 	String GetMessageOfTheDay();
 
 	void Initialize();
@@ -104,15 +104,15 @@ public:
 	void AddListener(ClientListener * listener);
 	void RemoveListener(ClientListener * listener);
 
-	std::unique_ptr<SaveFile> GetStamp(ByteString const &stampID);
-	void DeleteStamp(ByteString const &stampID);
-	void RenameStamp(ByteString const &stampID, ByteString const &newName);
+	std::unique_ptr<SaveFile> GetStamp(ByteString stampID);
+	void DeleteStamp(ByteString stampID);
+	void RenameStamp(ByteString stampID, ByteString newName);
 	ByteString AddStamp(std::unique_ptr<GameSave> saveData);
 	void RescanStamps();
 	const std::vector<ByteString> &GetStamps() const;
 	void MoveStampToFront(ByteString stampID);
 
-	std::unique_ptr<SaveFile> LoadSaveFile(ByteString const &filename);
+	std::unique_ptr<SaveFile> LoadSaveFile(ByteString filename);
 
 	void SetAuthUser(std::optional<User> user);
 	const std::optional<User> &GetAuthUser() const;

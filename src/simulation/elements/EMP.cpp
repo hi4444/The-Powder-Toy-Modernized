@@ -108,18 +108,17 @@ void Element_EMP_Trigger(Simulation *sim, int triggerCount)
 
 	for (int r = 0; r < sim->parts.active; r++)
 	{
-		auto &part = parts[r];
-		int t = part.type;
-		auto rx = int(part.x);
-		auto ry = int(part.y);
-		if (t==PT_SPRK || (t==PT_SWCH && part.life!=0 && part.life!=10) || (t==PT_WIRE && part.ctype>0))
+		int t = parts[r].type;
+		auto rx = int(parts[r].x);
+		auto ry = int(parts[r].y);
+		if (t==PT_SPRK || (t==PT_SWCH && parts[r].life!=0 && parts[r].life!=10) || (t==PT_WIRE && parts[r].ctype>0))
 		{
 			bool is_elec = false;
-			if (part.ctype==PT_PSCN || part.ctype==PT_NSCN || part.ctype==PT_PTCT ||
-			    part.ctype==PT_NTCT || part.ctype==PT_INST || part.ctype==PT_SWCH || t==PT_WIRE || t==PT_SWCH)
+			if (parts[r].ctype==PT_PSCN || parts[r].ctype==PT_NSCN || parts[r].ctype==PT_PTCT ||
+			    parts[r].ctype==PT_NTCT || parts[r].ctype==PT_INST || parts[r].ctype==PT_SWCH || t==PT_WIRE || t==PT_SWCH)
 			{
 				is_elec = true;
-				temp_center.apply(sim, part);
+				temp_center.apply(sim, parts[r]);
 				if (sim->rng.uniform01() < prob_changeCenter)
 				{
 					if (sim->rng.chance(2, 5))
@@ -130,7 +129,7 @@ void Element_EMP_Trigger(Simulation *sim, int triggerCount)
 			}
 			for (int nx =-2; nx <= 2; nx++)
 				for (int ny =-2; ny <= 2; ny++)
-					if (rx+nx>=0 && ry+ny>=0 && rx+nx<XRES && ry+ny<YRES && (nx || ny))
+					if (rx+nx>=0 && ry+ny>=0 && rx+nx<XRES && ry+ny<YRES && (rx || ry))
 					{
 						int n = sim->pmap[ry+ny][rx+nx];
 						if (!n)
