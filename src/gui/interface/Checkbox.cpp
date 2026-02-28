@@ -60,7 +60,7 @@ void Checkbox::OnMouseEnter(int x, int y)
 
 void Checkbox::OnMouseHover(int x, int y)
 {
-	if(toolTip.length()>0 && GetParentWindow())
+	if(!toolTip.empty() && GetParentWindow())
 	{
 		GetParentWindow()->ToolTip(Position, toolTip);
 	}

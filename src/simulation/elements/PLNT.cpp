@@ -57,19 +57,20 @@ void Element::Element_PLNT()
 
 static int update(UPDATE_FUNC_ARGS)
 {
+	auto &part = parts[i];
 	// Select tree growth code or usual PLNT code
-	if (parts[i].ctype & 1)
+	if (part.ctype & 1)
 	{
-		auto temp = parts[i].temp;
+		auto temp = part.temp;
 
 		// Hot and cold temperature kills tree growth
 		if (temp > 373.15f || temp < 223.15f)
 		{
-			parts[i].ctype = 0;
-			parts[i].tmp = 0;
-			parts[i].tmp2 = 0;
-			parts[i].tmp3 = 0;
-			parts[i].tmp4 = 0;
+			part.ctype = 0;
+			part.tmp = 0;
+			part.tmp2 = 0;
+			part.tmp3 = 0;
+			part.tmp4 = 0;
 
 			return 0;
 		}
@@ -83,19 +84,19 @@ static int update(UPDATE_FUNC_ARGS)
 			return 0;
 
 		// Current phase, direction and life
-		int phase = (parts[i].ctype>>PLNT_PHASE) & 0x3;
-		int dir = (parts[i].ctype>>PLNT_DIR) & 0x7;
-		int life = (parts[i].ctype>>PLNT_LIFE) & 0xFF;
+		int phase = (part.ctype >> PLNT_PHASE) & 0x3;
+		int dir = (part.ctype >> PLNT_DIR) & 0x7;
+		int life = (part.ctype >> PLNT_LIFE) & 0xFF;
 
 		int prog = 0;
 
 		// Select a program for the current phase
 		switch (phase)
 		{
-			case 0: prog = parts[i].tmp; break;
-			case 1: prog = parts[i].tmp2; break;
-			case 2: prog = parts[i].tmp3; break;
-			case 3: prog = parts[i].tmp4; break;
+			case 0: prog = part.tmp; break;
+			case 1: prog = part.tmp2; break;
+			case 2: prog = part.tmp3; break;
+			case 3: prog = part.tmp4; break;
 		}
 
 		int si = -1; // Used for create_part calls
@@ -107,7 +108,7 @@ static int update(UPDATE_FUNC_ARGS)
 		if (life > 0)
 		{
 			// Do we grow forward or branch?
-			if (!parts[i].life)
+			if (!part.life)
 			{
 				// Branching
 				int bmask = prog&0x1F;
@@ -144,16 +145,16 @@ static int update(UPDATE_FUNC_ARGS)
 							si = sim->create_part(-1, x+dir3x3[ndir].X, y+dir3x3[ndir].Y, PT_PLNT);
 							if (si >= 0)
 							{
-								parts[si].ctype = ((nlife & 0xFF) << PLNT_LIFE) | (parts[i].ctype & (0x3f << PLNT_COLOUR))
+								parts[si].ctype = ((nlife & 0xFF) << PLNT_LIFE) | (part.ctype & (0x3f << PLNT_COLOUR))
 										| ((ndir & 7) << PLNT_DIR) | ((nphase & 3) << PLNT_PHASE) | 0x1;
 
 								// Reduce the length of diagonal branches by 1/sqrt(2) ~= 0.7
 								parts[si].life = (ndir%2 == 1) ? 7*nlife : 10*nlife;
 
-								parts[si].tmp = parts[i].tmp;
-								parts[si].tmp2 = parts[i].tmp2;
-								parts[si].tmp3 = parts[i].tmp3;
-								parts[si].tmp4 = parts[i].tmp4;
+								parts[si].tmp = part.tmp;
+								parts[si].tmp2 = part.tmp2;
+								parts[si].tmp3 = part.tmp3;
+								parts[si].tmp4 = part.tmp4;
 							}
 						}
 
@@ -169,14 +170,14 @@ static int update(UPDATE_FUNC_ARGS)
 				si = sim->create_part(-1, x+dir3x3[dir].X, y+dir3x3[dir].Y, PT_PLNT);
 				if (si >= 0)
 				{
-					parts[si].ctype = ((life & 0xFF) << PLNT_LIFE) | (parts[i].ctype & (0x3f << PLNT_COLOUR))
+					parts[si].ctype = ((life & 0xFF) << PLNT_LIFE) | (part.ctype & (0x3f << PLNT_COLOUR))
 							| ((dir & 7) << PLNT_DIR) | ((phase & 3) << PLNT_PHASE) | 0x1;
 
-					parts[si].life = parts[i].life;
-					parts[si].tmp = parts[i].tmp;
-					parts[si].tmp2 = parts[i].tmp2;
-					parts[si].tmp3 = parts[i].tmp3;
-					parts[si].tmp4 = parts[i].tmp4;
+					parts[si].life = part.life;
+					parts[si].tmp = part.tmp;
+					parts[si].tmp2 = part.tmp2;
+					parts[si].tmp3 = part.tmp3;
+					parts[si].tmp4 = part.tmp4;
 				}
 			}
 
@@ -187,24 +188,24 @@ static int update(UPDATE_FUNC_ARGS)
 				{
 					sim->create_part(i, x, y, PT_WOOD);
 
-					parts[i].ctype = 0;
-					parts[i].life = 0;
-					parts[i].tmp = 0;
-					parts[i].tmp2 = 0;
-					parts[i].tmp3 = 0;
-					parts[i].tmp4 = 0;
+					part.ctype = 0;
+					part.life = 0;
+					part.tmp = 0;
+					part.tmp2 = 0;
+					part.tmp3 = 0;
+					part.tmp4 = 0;
 				}
 				else
 				{
 					// Thick stem
 					sim->create_part(i, x, y, PT_GOO);
 
-					parts[i].ctype = 0;
-					parts[i].life = 0;
-					parts[i].tmp = 0;
-					parts[i].tmp2 = 0;
-					parts[i].tmp3 = 0;
-					parts[i].tmp4 = 0;
+					part.ctype = 0;
+					part.life = 0;
+					part.tmp = 0;
+					part.tmp2 = 0;
+					part.tmp3 = 0;
+					part.tmp4 = 0;
 
 					int left_dir = (dir+6)%8;
 					int right_dir = (dir+2)%8;
@@ -237,22 +238,22 @@ static int update(UPDATE_FUNC_ARGS)
 					parts[si].vy = dir3x3[dir].Y;
 
 					// Inherit genome
-					parts[si].ctype = parts[i].ctype & (0x3f << PLNT_COLOUR); // Preserve only the colour
-					parts[si].tmp = parts[i].tmp;
-					parts[si].tmp2 = parts[i].tmp2;
-					parts[si].tmp3 = parts[i].tmp3;
-					parts[si].tmp4 = parts[i].tmp4;
+					parts[si].ctype = part.ctype & (0x3f << PLNT_COLOUR); // Preserve only the colour
+					parts[si].tmp = part.tmp;
+					parts[si].tmp2 = part.tmp2;
+					parts[si].tmp3 = part.tmp3;
+					parts[si].tmp4 = part.tmp4;
 				}
 			}
 
 			// Turn into usual plant (but preserve color)
 			// We set direction to 7 to tell graphics() that PLNT needs coloring
-			parts[i].ctype = (parts[i].ctype & (0x3f << PLNT_COLOUR)) | (7 << PLNT_DIR);
-			parts[i].life = 0;
-			parts[i].tmp = 0;
-			parts[i].tmp2 = 0;
-			parts[i].tmp3 = 0;
-			parts[i].tmp4 = 0;
+			part.ctype = (part.ctype & (0x3f << PLNT_COLOUR)) | (7 << PLNT_DIR);
+			part.life = 0;
+			part.tmp = 0;
+			part.tmp2 = 0;
+			part.tmp3 = 0;
+			part.tmp4 = 0;
 		}
 
 		return 1;
@@ -280,7 +281,7 @@ static int update(UPDATE_FUNC_ARGS)
 							if (sim->rng.chance(1, 50))
 							{
 								sim->part_change_type(i,x,y,PT_FIRE);
-								parts[i].life = 4;
+								part.life = 4;
 							}
 							break;
 						case PT_SMKE:
@@ -288,13 +289,13 @@ static int update(UPDATE_FUNC_ARGS)
 							if (sim->rng.chance(1, 50))
 							{
 								sim->kill_part(ID(r));
-								parts[i].life = sim->rng.between(60, 119);
+								part.life = sim->rng.between(60, 119);
 							}
 							break;
 						case PT_WOOD:
 							{
 								auto rndstore = sim->rng.gen();
-								if (surround_space && !(rndstore%4) && parts[i].tmp==1)
+								if (surround_space && !(rndstore%4) && part.tmp == 1)
 								{
 									rndstore >>= 3;
 									int nnx = (rndstore%3) -1;
@@ -306,7 +307,7 @@ static int update(UPDATE_FUNC_ARGS)
 											continue;
 										auto np = sim->create_part(-1,x+rx+nnx,y+ry+nny,PT_VINE);
 										if (np<0) continue;
-										parts[np].temp = parts[i].temp;
+										parts[np].temp = part.temp;
 									}
 								}
 							}
@@ -317,7 +318,7 @@ static int update(UPDATE_FUNC_ARGS)
 				}
 			}
 		}
-		if (parts[i].life==2)
+		if (part.life == 2)
 		{
 			for (auto rx = -1; rx <= 1; rx++)
 			{
@@ -331,10 +332,10 @@ static int update(UPDATE_FUNC_ARGS)
 					}
 				}
 			}
-			parts[i].life = 0;
+			part.life = 0;
 		}
-		if (parts[i].temp > 350 && parts[i].temp > parts[i].tmp2)
-			parts[i].tmp2 = (int)parts[i].temp;
+		if (part.temp > 350 && part.temp > part.tmp2)
+			part.tmp2 = int(part.temp);
 	}
 	return 0;
 }

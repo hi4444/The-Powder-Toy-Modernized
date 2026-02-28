@@ -2441,7 +2441,7 @@ std::pair<bool, std::vector<char>> GameSave::serialiseOPS() const
 
 	for (size_t i = 0; i < signs.size(); i++)
 	{
-		if(signs[i].text.length() && partS.OriginRect().Contains({ signs[i].x, signs[i].y }))
+		if(!signs[i].text.empty() && partS.OriginRect().Contains({ signs[i].x, signs[i].y }))
 		{
 			int x, y, w, h;
 			bool v95 = false;
@@ -2596,7 +2596,7 @@ std::pair<bool, std::vector<char>> GameSave::serialiseOPS() const
 	unsigned int signsCount = 0;
 	for (size_t i = 0; i < signs.size(); i++)
 	{
-		if(signs[i].text.length() && partS.OriginRect().Contains({ signs[i].x, signs[i].y }))
+		if(!signs[i].text.empty() && partS.OriginRect().Contains({ signs[i].x, signs[i].y }))
 		{
 			signsCount++;
 		}
@@ -2606,7 +2606,7 @@ std::pair<bool, std::vector<char>> GameSave::serialiseOPS() const
 		auto &signsNode = (b["signs"] = Bson::Type::arrayValue);
 		for (size_t i = 0; i < signs.size(); i++)
 		{
-			if(signs[i].text.length() && partS.OriginRect().Contains({ signs[i].x, signs[i].y }))
+			if(!signs[i].text.empty() && partS.OriginRect().Contains({ signs[i].x, signs[i].y }))
 			{
 				auto &signNode = signsNode.Append(Bson::Type::objectValue);
 				signNode["text"] = signs[i].text.ToUtf8();

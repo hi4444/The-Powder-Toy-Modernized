@@ -63,13 +63,14 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
+	auto &part = parts[i];
 	int fe = 0;
 
-	parts[i].tmp = (int)((parts[i].temp-73.15f)/100+1);
-	if (parts[i].tmp >= CHANNELS)
-		parts[i].tmp = CHANNELS-1;
-	else if (parts[i].tmp < 0)
-		parts[i].tmp = 0;
+	part.tmp = (int)((part.temp-73.15f)/100+1);
+	if (part.tmp >= CHANNELS)
+		part.tmp = CHANNELS-1;
+	else if (part.tmp < 0)
+		part.tmp = 0;
 
 	for (int count = 0; count < 8; count++)
 	{
@@ -94,24 +95,26 @@ static int update(UPDATE_FUNC_ARGS)
 				Element_SOAP_detach(sim, ID(r));
 
 			for (int nnx=0; nnx<80; nnx++)
-				if (!sim->portalp[parts[i].tmp][count][nnx].type)
+				if (!sim->portalp[part.tmp][count][nnx].type)
 				{
+					int rid = ID(r);
+					int typ = TYP(r);
 					if (TYP(r) == PT_STOR)
 					{
-						if (sd.IsElement(parts[ID(r)].tmp) && (elements[parts[ID(r)].tmp].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY)))
+						if (sd.IsElement(parts[rid].tmp) && (elements[parts[rid].tmp].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY)))
 						{
 							// STOR uses same format as PIPE, so we can use this function to do the transfer
-							Element_PIPE_transfer_pipe_to_part(sim, parts+(ID(r)), &sim->portalp[parts[i].tmp][count][nnx], true);
+							Element_PIPE_transfer_pipe_to_part(sim, parts+rid, &sim->portalp[part.tmp][count][nnx], true);
 							break;
 						}
 					}
 					else
 					{
-						sim->portalp[parts[i].tmp][count][nnx] = parts[ID(r)];
-						if (TYP(r) == PT_SPRK)
-							sim->part_change_type(ID(r),x+rx,y+ry,parts[ID(r)].ctype);
+						sim->portalp[part.tmp][count][nnx] = parts[rid];
+						if (typ == PT_SPRK)
+							sim->part_change_type(rid, x+rx, y+ry, parts[rid].ctype);
 						else
-							sim->kill_part(ID(r));
+							sim->kill_part(rid);
 						fe = 1;
 						break;
 					}
@@ -123,9 +126,9 @@ static int update(UPDATE_FUNC_ARGS)
 	if (fe) {
 		int orbd[4] = {0, 0, 0, 0};	//Orbital distances
 		int orbl[4] = {0, 0, 0, 0};	//Orbital locations
-		if (!sim->parts[i].life) parts[i].life = sim->rng.gen();
-		if (!sim->parts[i].ctype) parts[i].ctype = sim->rng.gen();
-		orbitalparts_get(parts[i].life, parts[i].ctype, orbd, orbl);
+		if (!part.life) part.life = sim->rng.gen();
+		if (!part.ctype) part.ctype = sim->rng.gen();
+		orbitalparts_get(part.life, part.ctype, orbd, orbl);
 		for (int r = 0; r < 4; r++) {
 			if (orbd[r]>1) {
 				orbd[r] -= 12;
@@ -141,10 +144,10 @@ static int update(UPDATE_FUNC_ARGS)
 				orbl[r] = sim->rng.between(0, 254);
 			}
 		}
-		orbitalparts_set(&parts[i].life, &parts[i].ctype, orbd, orbl);
+		orbitalparts_set(&part.life, &part.ctype, orbd, orbl);
 	} else {
-		parts[i].life = 0;
-		parts[i].ctype = 0;
+		part.life = 0;
+		part.ctype = 0;
 	}
 	return 0;
 }

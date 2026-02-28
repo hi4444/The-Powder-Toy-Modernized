@@ -57,49 +57,53 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	unsigned int pressureFactor = 3 + (int)sim->pv[y/CELL][x/CELL];
+	auto &part = parts[i];
+	auto cx = x / CELL;
+	auto cy = y / CELL;
+	unsigned int pressureFactor = 3 + int(sim->pv[cy][cx]);
 	for (int rx = -1; rx <= 1; rx++)
 	{
 		for (int ry = -1; ry <= 1; ry++)
 		{
 			auto r = pmap[y+ry][x+rx];
+			auto rid = ID(r);
 			switch (TYP(r))
 			{
 			case PT_WATR:
 				if (sim->rng.chance(3, 20))
-					sim->part_change_type(ID(r),x+rx,y+ry,PT_DSTW);
+					sim->part_change_type(rid, x + rx, y + ry, PT_DSTW);
 			case PT_ICEI:
 			case PT_SNOW:
-				parts[i].vx *= 0.995f;
-				parts[i].vy *= 0.995f;
+				part.vx *= 0.995f;
+				part.vy *= 0.995f;
 				break;
 			case PT_PLUT:
 				if (sim->rng.chance(pressureFactor, 1000))
 				{
 					if (sim->rng.chance(1, 3))
 					{
-						sim->create_part(ID(r), x+rx, y+ry, sim->rng.chance(2, 3) ? PT_LAVA : PT_URAN);
-						parts[ID(r)].temp = MAX_TEMP;
-						if (parts[ID(r)].type==PT_LAVA) {
-							parts[ID(r)].tmp = 100;
-							parts[ID(r)].ctype = PT_PLUT;
+						sim->create_part(rid, x + rx, y + ry, sim->rng.chance(2, 3) ? PT_LAVA : PT_URAN);
+						parts[rid].temp = MAX_TEMP;
+						if (parts[rid].type==PT_LAVA) {
+							parts[rid].tmp = 100;
+							parts[rid].ctype = PT_PLUT;
 						}
 					}
 					else
 					{
-						sim->create_part(ID(r), x+rx, y+ry, PT_NEUT);
-						parts[ID(r)].vx = 0.25f*parts[ID(r)].vx + parts[i].vx;
-						parts[ID(r)].vy = 0.25f*parts[ID(r)].vy + parts[i].vy;
+						sim->create_part(rid, x + rx, y + ry, PT_NEUT);
+						parts[rid].vx = 0.25f * parts[rid].vx + part.vx;
+						parts[rid].vy = 0.25f * parts[rid].vy + part.vy;
 					}
-					sim->pv[y/CELL][x/CELL] += 10.0f * CFDS; //Used to be 2, some people said nukes weren't powerful enough
+					sim->pv[cy][cx] += 10.0f * CFDS; //Used to be 2, some people said nukes weren't powerful enough
 					Element_FIRE_update(UPDATE_FUNC_SUBCALL_ARGS);
 				}
 				break;
 			case PT_DEUT:
-				if (sim->rng.chance(pressureFactor + 1 + (parts[ID(r)].life/100), 1000))
+				if (sim->rng.chance(pressureFactor + 1 + (parts[rid].life/100), 1000))
 				{
-					DeutExplosion(sim, parts[ID(r)].life, x+rx, y+ry, restrict_flt(parts[ID(r)].temp + parts[ID(r)].life*500.0f, MIN_TEMP, MAX_TEMP), PT_NEUT);
-					sim->kill_part(ID(r));
+					DeutExplosion(sim, parts[rid].life, x + rx, y + ry, restrict_flt(parts[rid].temp + parts[rid].life * 500.0f, MIN_TEMP, MAX_TEMP), PT_NEUT);
+					sim->kill_part(rid);
 				}
 				break;
 			case PT_GUNP:
@@ -159,7 +163,7 @@ static int update(UPDATE_FUNC_ARGS)
 				break;
 			case PT_EXOT:
 				if (sim->rng.chance(1, 20))
-					parts[ID(r)].life = 1500;
+					parts[rid].life = 1500;
 				break;
 			case PT_RFRG:
 				if (sim->rng.chance(1, 2))
@@ -172,20 +176,20 @@ static int update(UPDATE_FUNC_ARGS)
 				{
 					int ct_under, tmp_under;
 
-					ct_under = parts[ID(r)].ctype;
-					tmp_under = parts[ID(r)].tmp;
+					ct_under = parts[rid].ctype;
+					tmp_under = parts[rid].tmp;
 
 					//If there's a correct ctype set, liquefy into it
 					if(ct_under > 0 && ct_under < PT_NUM)
 					{
-						sim->create_part(ID(r), x, y, ct_under);
+						sim->create_part(rid, x, y, ct_under);
 
 						//If there's a correct tmp set, use it for ctype
 						if((tmp_under > 0) && (tmp_under < PT_NUM) && (elements[ct_under].CarriesTypeIn & (1U << FIELD_CTYPE)))
-							parts[ID(r)].ctype = tmp_under;
+							parts[rid].ctype = tmp_under;
 					}
 					else
-						sim->part_change_type(ID(r), x, y, PT_RSST); //Default to RSST if no ctype
+						sim->part_change_type(rid, x, y, PT_RSST); //Default to RSST if no ctype
 
 					sim->kill_part(i);
 
@@ -193,8 +197,8 @@ static int update(UPDATE_FUNC_ARGS)
 				}
 				break;
 			case PT_BASE:
-				if (parts[ID(r)].temp > (50 + 273.15) && sim->rng.chance(1, 35))
-					sim->create_part(ID(r), x+rx, y+ry, PT_LRBD);
+				if (parts[rid].temp > (50 + 273.15) && sim->rng.chance(1, 35))
+					sim->create_part(rid, x+rx, y+ry, PT_LRBD);
 				break;
 			case PT_SEED:
 				if(!rx && !ry)
@@ -203,19 +207,19 @@ static int update(UPDATE_FUNC_ARGS)
 					switch (sim->rng.between(0, 9))
 					{
 						case 0:
-							parts[ID(r)].ctype ^= 1 << sim->rng.between(PLNT_COLOUR, PLNT_LIFE-1);
+							parts[rid].ctype ^= 1 << sim->rng.between(PLNT_COLOUR, PLNT_LIFE-1);
 							break;
 						case 1:
-							parts[ID(r)].tmp ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
+							parts[rid].tmp ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
 							break;
 						case 2:
-							parts[ID(r)].tmp2 ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
+							parts[rid].tmp2 ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
 							break;
 						case 3:
-							parts[ID(r)].tmp3 ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
+							parts[rid].tmp3 ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
 							break;
 						case 4:
-							parts[ID(r)].tmp4 ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
+							parts[rid].tmp4 ^= 1 << sim->rng.between(0, PLNT_TOTAL_TMP-1);
 							break;
 						default:
 							break;

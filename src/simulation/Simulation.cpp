@@ -256,7 +256,7 @@ void Simulation::Load(const GameSave *save, bool includePressure, Vec2<int> bloc
 
 	for (size_t i = 0; i < save->signs.size() && signs.size() < MAXSIGNS; i++)
 	{
-		if (save->signs[i].text.length())
+		if (!save->signs[i].text.empty())
 		{
 			sign tempSign = save->signs[i];
 			tempSign.x += partP.X;
@@ -392,7 +392,7 @@ std::unique_ptr<GameSave> Simulation::Save(bool includePressure, Rect<int> partR
 
 	for (size_t i = 0; i < MAXSIGNS && i < signs.size(); i++)
 	{
-		if (signs[i].text.length() && partR.Contains({ signs[i].x, signs[i].y }))
+		if (!signs[i].text.empty() && partR.Contains({ signs[i].x, signs[i].y }))
 		{
 			sign tempSign = signs[i];
 			tempSign.x -= blockP.X * CELL;
@@ -672,10 +672,27 @@ bool Simulation::flood_water(int x, int y, int i)
 	if (!r)
 		return false;
 
-	// Bitmap for checking where we've already looked
-	auto bitmapPtr = std::unique_ptr<char[]>(new char[XRES * YRES]);
-	char *bitmap = bitmapPtr.get();
-	std::fill(&bitmap[0], &bitmap[0] + XRES * YRES, 0);
+	// Reuse visited storage across calls to avoid per-call allocation and full clears.
+	thread_local std::vector<uint16_t> visited;
+	thread_local uint16_t visitedGeneration = 0;
+	if (visited.size() != XRES * YRES)
+	{
+		visited.assign(XRES * YRES, 0);
+		visitedGeneration = 0;
+	}
+	visitedGeneration++;
+	if (visitedGeneration == 0)
+	{
+		std::fill(visited.begin(), visited.end(), 0);
+		visitedGeneration = 1;
+	}
+
+	auto wasVisited = [](int px, int py, uint16_t generation) {
+		return visited[py * XRES + px] == generation;
+	};
+	auto markVisited = [](int px, int py, uint16_t generation) {
+		visited[py * XRES + px] = generation;
+	};
 
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
@@ -691,13 +708,13 @@ bool Simulation::flood_water(int x, int y, int i)
 			x1 = x2 = x;
 			while (x1 >= CELL)
 			{
-				if (elements[TYP(pmap[y][x1 - 1])].Falldown != 2 || bitmap[(y * XRES) + x1 - 1])
+				if (elements[TYP(pmap[y][x1 - 1])].Falldown != 2 || wasVisited(x1 - 1, y, visitedGeneration))
 					break;
 				x1--;
 			}
 			while (x2 < XRES-CELL)
 			{
-				if (elements[TYP(pmap[y][x2 + 1])].Falldown != 2 || bitmap[(y * XRES) + x1 - 1])
+				if (elements[TYP(pmap[y][x2 + 1])].Falldown != 2 || wasVisited(x1 - 1, y, visitedGeneration))
 					break;
 				x2++;
 			}
@@ -717,15 +734,15 @@ bool Simulation::flood_water(int x, int y, int i)
 					return true;
 				}
 
-				bitmap[(y * XRES) + x] = 1;
+				markVisited(x, y, visitedGeneration);
 			}
 			if (y >= CELL + 1)
 				for (int x = x1; x <= x2; x++)
-					if (elements[TYP(pmap[y - 1][x])].Falldown == 2 && !bitmap[((y - 1) * XRES) + x])
+					if (elements[TYP(pmap[y - 1][x])].Falldown == 2 && !wasVisited(x, y - 1, visitedGeneration))
 						cs.push(x, y - 1);
 			if (y < YRES - CELL - 1)
 				for (int x = x1; x <= x2; x++)
-					if (elements[TYP(pmap[y + 1][x])].Falldown == 2 && !bitmap[((y + 1) * XRES) + x])
+					if (elements[TYP(pmap[y + 1][x])].Falldown == 2 && !wasVisited(x, y + 1, visitedGeneration))
 						cs.push(x, y + 1);
 		} while (cs.getSize() > 0);
 	}
@@ -2249,17 +2266,23 @@ void Simulation::UpdateParticles(int start, int end)
 	//the main particle loop function, goes over all particles.
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
+	auto *localVx = vx;
+	auto *localVy = vy;
+	auto *localPv = pv;
+	auto *localBmap = bmap;
+	auto *localEmap = emap;
 	for (auto i = start; i < end && i < parts.active; i++)
 	{
-		auto t = parts[i].type;
+		auto &part = parts[i];
+		auto t = part.type;
 		if (!t)
 		{
 			continue;
 		}
 		debug_mostRecentlyUpdated = i;
 
-		auto x = int(parts[i].x+0.5f);
-		auto y = int(parts[i].y+0.5f);
+		auto x = int(part.x + 0.5f);
+		auto y = int(part.y + 0.5f);
 
 		// Kill a particle off screen
 		if (x<CELL || y<CELL || x>=XRES-CELL || y>=YRES-CELL)
@@ -2267,61 +2290,66 @@ void Simulation::UpdateParticles(int start, int end)
 			kill_part(i);
 			continue;
 		}
+		auto cx = x / CELL;
+		auto cy = y / CELL;
+		auto wall = localBmap[cy][cx];
 
 		// Kill a particle in a wall where it isn't supposed to go
-		if (bmap[y/CELL][x/CELL] &&
-		   (bmap[y/CELL][x/CELL]==WL_WALL ||
-		    bmap[y/CELL][x/CELL]==WL_WALLELEC ||
-		    bmap[y/CELL][x/CELL]==WL_ALLOWAIR ||
-		    (bmap[y/CELL][x/CELL]==WL_DESTROYALL) ||
-		    (bmap[y/CELL][x/CELL]==WL_ALLOWLIQUID && !(elements[t].Properties&TYPE_LIQUID)) ||
-		    (bmap[y/CELL][x/CELL]==WL_ALLOWPOWDER && !(elements[t].Properties&TYPE_PART)) ||
-		    (bmap[y/CELL][x/CELL]==WL_ALLOWGAS && !(elements[t].Properties&TYPE_GAS)) || //&& elements[t].Falldown!=0 && parts[i].type!=PT_FIRE && parts[i].type!=PT_SMKE && parts[i].type!=PT_CFLM) ||
-		            (bmap[y/CELL][x/CELL]==WL_ALLOWENERGY && !(elements[t].Properties&TYPE_ENERGY)) ||
-		    (bmap[y/CELL][x/CELL]==WL_EWALL && !emap[y/CELL][x/CELL])) && (t!=PT_STKM) && (t!=PT_STKM2) && (t!=PT_FIGH))
+		if (wall &&
+		   (wall==WL_WALL ||
+		    wall==WL_WALLELEC ||
+		    wall==WL_ALLOWAIR ||
+		    wall==WL_DESTROYALL ||
+		    (wall==WL_ALLOWLIQUID && !(elements[t].Properties&TYPE_LIQUID)) ||
+		    (wall==WL_ALLOWPOWDER && !(elements[t].Properties&TYPE_PART)) ||
+		    (wall==WL_ALLOWGAS && !(elements[t].Properties&TYPE_GAS)) ||
+		    (wall==WL_ALLOWENERGY && !(elements[t].Properties&TYPE_ENERGY)) ||
+		    (wall==WL_EWALL && !localEmap[cy][cx])) && (t!=PT_STKM) && (t!=PT_STKM2) && (t!=PT_FIGH))
 		{
 			kill_part(i);
 			continue;
 		}
 
 		// Make sure that STASIS'd particles don't tick.
-		if (bmap[y/CELL][x/CELL] == WL_STASIS && emap[y/CELL][x/CELL]<8) {
+		if (wall == WL_STASIS && localEmap[cy][cx] < 8) {
 			continue;
 		}
 
-		if (bmap[y/CELL][x/CELL]==WL_DETECT && emap[y/CELL][x/CELL]<8)
-			set_emap(x/CELL, y/CELL);
+		if (wall == WL_DETECT && localEmap[cy][cx] < 8)
+		{
+			set_emap(cx, cy);
+		}
 
 		//adding to velocity from the particle's velocity
-		vx[y/CELL][x/CELL] = vx[y/CELL][x/CELL]*elements[t].AirLoss + elements[t].AirDrag*parts[i].vx;
-		vy[y/CELL][x/CELL] = vy[y/CELL][x/CELL]*elements[t].AirLoss + elements[t].AirDrag*parts[i].vy;
+		localVx[cy][cx] = localVx[cy][cx] * elements[t].AirLoss + elements[t].AirDrag * part.vx;
+		localVy[cy][cx] = localVy[cy][cx] * elements[t].AirLoss + elements[t].AirDrag * part.vy;
 
 		if (elements[t].HotAir)
 		{
 			if (t==PT_GAS||t==PT_NBLE)
 			{
-				if (pv[y/CELL][x/CELL]<3.5f)
-					pv[y/CELL][x/CELL] += elements[t].HotAir*(3.5f-pv[y/CELL][x/CELL]);
-				if (y+CELL<YRES && pv[y/CELL+1][x/CELL]<3.5f)
-					pv[y/CELL+1][x/CELL] += elements[t].HotAir*(3.5f-pv[y/CELL+1][x/CELL]);
+				if (localPv[cy][cx] < 3.5f)
+					localPv[cy][cx] += elements[t].HotAir * (3.5f - localPv[cy][cx]);
+				if (y + CELL < YRES && localPv[cy + 1][cx] < 3.5f)
+					localPv[cy + 1][cx] += elements[t].HotAir * (3.5f - localPv[cy + 1][cx]);
 				if (x+CELL<XRES)
 				{
-					if (pv[y/CELL][x/CELL+1]<3.5f)
-						pv[y/CELL][x/CELL+1] += elements[t].HotAir*(3.5f-pv[y/CELL][x/CELL+1]);
-					if (y+CELL<YRES && pv[y/CELL+1][x/CELL+1]<3.5f)
-						pv[y/CELL+1][x/CELL+1] += elements[t].HotAir*(3.5f-pv[y/CELL+1][x/CELL+1]);
+					if (localPv[cy][cx + 1] < 3.5f)
+						localPv[cy][cx + 1] += elements[t].HotAir * (3.5f - localPv[cy][cx + 1]);
+					if (y + CELL < YRES && localPv[cy + 1][cx + 1] < 3.5f)
+						localPv[cy + 1][cx + 1] += elements[t].HotAir * (3.5f - localPv[cy + 1][cx + 1]);
 				}
 			}
 			else//add the hotair variable to the pressure map, like black hole, or white hole.
 			{
-				pv[y/CELL][x/CELL] += elements[t].HotAir;
-				if (y+CELL<YRES)
-					pv[y/CELL+1][x/CELL] += elements[t].HotAir;
+				localPv[cy][cx] += elements[t].HotAir;
+				if (y + CELL < YRES)
+					localPv[cy + 1][cx] += elements[t].HotAir;
 				if (x+CELL<XRES)
 				{
-					pv[y/CELL][x/CELL+1] += elements[t].HotAir;
-					if (y+CELL<YRES)
-						pv[y/CELL+1][x/CELL+1] += elements[t].HotAir;
+					localPv[cy][cx + 1] += elements[t].HotAir;
+					if (y + CELL < YRES)
+						localPv[cy + 1][cx + 1] += elements[t].HotAir;
 				}
 			}
 		}
@@ -2331,28 +2359,28 @@ void Simulation::UpdateParticles(int start, int end)
 		//velocity updates for the particle
 		if (t != PT_SPNG || !(parts[i].flags&FLAG_MOVABLE))
 		{
-			parts[i].vx *= elements[t].Loss;
-			parts[i].vy *= elements[t].Loss;
+			part.vx *= elements[t].Loss;
+			part.vy *= elements[t].Loss;
 		}
 		//particle gets velocity from the vx and vy maps
-		parts[i].vx += elements[t].Advection*vx[y/CELL][x/CELL] + neighbourhood.pGravX;
-		parts[i].vy += elements[t].Advection*vy[y/CELL][x/CELL] + neighbourhood.pGravY;
+		part.vx += elements[t].Advection * localVx[cy][cx] + neighbourhood.pGravX;
+		part.vy += elements[t].Advection * localVy[cy][cx] + neighbourhood.pGravY;
 
 
 		if (elements[t].Diffusion)//the random diffusion that gasses have
 		{
-			parts[i].vx += elements[t].Diffusion*(2.0f*rng.uniform01()-1.0f);
-			parts[i].vy += elements[t].Diffusion*(2.0f*rng.uniform01()-1.0f);
+			part.vx += elements[t].Diffusion * (2.0f * rng.uniform01() - 1.0f);
+			part.vy += elements[t].Diffusion * (2.0f * rng.uniform01() - 1.0f);
 		}
 
 		auto transitionOccurred = TransitionPhase(i, neighbourhood);
-		if (!parts[i].type)
+		if (!part.type)
 		{
 			continue;
 		}
 		if (transitionOccurred)
 		{
-			t = parts[i].type;
+			t = part.type;
 		}
 
 		//call the particle update function, if there is one
@@ -2360,20 +2388,20 @@ void Simulation::UpdateParticles(int start, int end)
 		{
 			if ((*(elements[t].Update))(this, i, x, y, neighbourhood.surround_space, neighbourhood.nt, parts, pmap))
 				continue;
-			x = int(parts[i].x+0.5f);
-			y = int(parts[i].y+0.5f);
+			x = int(part.x + 0.5f);
+			y = int(part.y + 0.5f);
 		}
 
 		if(legacy_enable)//if heat sim is off
 			Element::legacyUpdate(this, i,x,y,neighbourhood.surround_space,neighbourhood.nt, parts, pmap);
 
-		if (parts[i].type == PT_NONE)//if its dead, skip to next particle
+		if (part.type == PT_NONE)//if its dead, skip to next particle
 			continue;
 
 		if (transitionOccurred)
 			continue;
 
-		if (!parts[i].vx&&!parts[i].vy)//if its not moving, skip to next particle, movement code it next
+		if (!part.vx && !part.vy)//if its not moving, skip to next particle, movement code it next
 			continue;
 
 		MovementPhase(i, neighbourhood);

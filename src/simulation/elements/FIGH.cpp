@@ -61,22 +61,26 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	if (parts[i].tmp < 0 || parts[i].tmp >= MAX_FIGHTERS)
+	auto &part = parts[i];
+	if (part.tmp < 0 || part.tmp >= MAX_FIGHTERS)
 	{
 		sim->kill_part(i);
 		return 1;
 	}
-	playerst* figh = &sim->fighters[(unsigned char)parts[i].tmp];
+	playerst* figh = &sim->fighters[(unsigned char)part.tmp];
 
 	int tarx = 0, tary = 0;
 
-	parts[i].tmp2 = 0; //0 - stay in place, 1 - seek a stick man
+	part.tmp2 = 0; //0 - stay in place, 1 - seek a stick man
 
 	//Set target cords
 	if (sim->player2.spwn)
 	{
-		if (sim->player.spwn && (pow((float)sim->player.legs[2]-x, 2) + pow((float)sim->player.legs[3]-y, 2))<=
-		   (pow((float)sim->player2.legs[2]-x, 2) + pow((float)sim->player2.legs[3]-y, 2)))
+		float dx1 = float(sim->player.legs[2]) - float(x);
+		float dy1 = float(sim->player.legs[3]) - float(y);
+		float dx2 = float(sim->player2.legs[2]) - float(x);
+		float dy2 = float(sim->player2.legs[3]) - float(y);
+		if (sim->player.spwn && (dx1*dx1 + dy1*dy1) <= (dx2*dx2 + dy2*dy2))
 		{
 			tarx = (int)sim->player.legs[2];
 			tary = (int)sim->player.legs[3];
@@ -86,26 +90,29 @@ static int update(UPDATE_FUNC_ARGS)
 			tarx = (int)sim->player2.legs[2];
 			tary = (int)sim->player2.legs[3];
 		}
-		parts[i].tmp2 = 1;
+		part.tmp2 = 1;
 	}
 	else if (sim->player.spwn)
 	{
 		tarx = (int)sim->player.legs[2];
 		tary = (int)sim->player.legs[3];
-		parts[i].tmp2 = 1;
+		part.tmp2 = 1;
 	}
 
-	switch (parts[i].tmp2)
+	switch (part.tmp2)
 	{
 	case 1:
-		if ((pow(float(tarx-x), 2) + pow(float(tary-y), 2))<600)
+		{
+			float dtx = float(tarx - x);
+			float dty = float(tary - y);
+			if ((dtx*dtx + dty*dty) < 600)
 		{
 			if (figh->elem == PT_LIGH || figh->elem == PT_NEUT
 			    || elements[figh->elem].Properties & (PROP_DEADLY | PROP_RADIOACTIVE)
 			    || elements[figh->elem].DefaultProperties.temp >= 323 || elements[figh->elem].DefaultProperties.temp <= 243)
 				figh->comm = (int)figh->comm | 0x08;
 		}
-		else if (tarx<x)
+		else if (tarx < x)
 		{
 			if(figh->rocketBoots || !(sim->eval_move(PT_FIGH, int(figh->legs[4])-10, int(figh->legs[5])+6, nullptr)
 			     && sim->eval_move(PT_FIGH, int(figh->legs[4])-10, int(figh->legs[5])+3, nullptr)))
@@ -140,6 +147,7 @@ static int update(UPDATE_FUNC_ARGS)
 			    || !sim->eval_move(PT_FIGH, int(figh->legs[4])+4, int(figh->legs[5])-1, nullptr)
 			    || sim->eval_move(PT_FIGH, 2*int(figh->legs[12])-int(figh->legs[14]), int(figh->legs[13])+5, nullptr))
 				figh->comm = (int)figh->comm | 0x04;
+		}
 		}
 		break;
 	default:

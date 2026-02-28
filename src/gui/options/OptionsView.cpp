@@ -154,6 +154,22 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		scrollPanel->AddChild(label);
 		currentY += 20;
 	}
+	{
+		simFpsCap = new ui::Textbox(ui::Point(Size.X-95, currentY), ui::Point(80, 16));
+		simFpsCap->SetActionCallback({ [this] {
+			UpdateSimFpsCap(simFpsCap->GetText(), false);
+		} });
+		simFpsCap->SetDefocusCallback({ [this] {
+			UpdateSimFpsCap(simFpsCap->GetText(), true);
+		} });
+		simFpsCap->SetLimit(6);
+		scrollPanel->AddChild(simFpsCap);
+		auto *label = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-105, 16), "Simulation FPS cap (0 = uncapped)");
+		label->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
+		label->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
+		scrollPanel->AddChild(label);
+		currentY += 20;
+	}
 	class GravityWindow : public ui::Window
 	{
 		void OnTryExit(ExitMethod method) override
@@ -453,6 +469,11 @@ void OptionsView::VorticityCoeffToTextBox(float vorticity)
 	vorticityCoeff->SetText(sb.Build());
 }
 
+void OptionsView::SimFpsCapToTextBox(int fpsCap)
+{
+	simFpsCap->SetText(String::Build(fpsCap));
+}
+
 void OptionsView::UpdateStartupRequestStatus()
 {
 	switch (Client::Ref().GetStartupRequestStatus())
@@ -566,6 +587,57 @@ void OptionsView::UpdateVorticityCoeff(String vort, bool isDefocus)
 		c->SetVorticityCoeff(vorticity);
 }
 
+void OptionsView::UpdateSimFpsCap(String cap, bool isDefocus)
+{
+	int fpsCap = 0;
+	bool isValid;
+	try
+	{
+		fpsCap = cap.ToNumber<int>();
+		isValid = true;
+	}
+	catch (const std::exception &ex)
+	{
+		isValid = false;
+	}
+
+	if (isDefocus)
+	{
+		if (cap.empty())
+		{
+			isValid = true;
+			fpsCap = 0;
+		}
+		else if (!isValid)
+		{
+			return;
+		}
+		else if (fpsCap < 0)
+		{
+			fpsCap = 0;
+		}
+		else if (fpsCap == 1)
+		{
+			fpsCap = 2;
+		}
+		else if (fpsCap > 1000)
+		{
+			fpsCap = 1000;
+		}
+
+		SimFpsCapToTextBox(fpsCap);
+	}
+	else if (isValid && (fpsCap < 0 || fpsCap == 1 || fpsCap > 1000))
+	{
+		isValid = false;
+	}
+
+	if (isValid)
+	{
+		c->SetSimFpsCap(fpsCap);
+	}
+}
+
 void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 {
 	temperatureScale->SetOption(sender->GetTemperatureScale()); // has to happen before AmbientAirTempToTextBox is called
@@ -585,6 +657,10 @@ void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 	if (!vorticityCoeff->IsFocused())
 	{
 		VorticityCoeffToTextBox(sender->GetVorticityCoeff());
+	}
+	if (!simFpsCap->IsFocused())
+	{
+		SimFpsCapToTextBox(sender->GetSimFpsCap());
 	}
 	gravityMode->SetOption(sender->GetGravityMode());
 	customGravityX = sender->GetCustomGravityX();

@@ -12,7 +12,7 @@ namespace Platform
 void DoRestart()
 {
 	ByteString exename = ExecutableName();
-	if (exename.length())
+	if (!exename.empty())
 	{
 		execl(exename.c_str(), exename.c_str(), NULL);
 		int ret = errno;
@@ -41,7 +41,7 @@ bool UpdateStart(std::span<const char> data)
 {
 	ByteString exeName = Platform::ExecutableName();
 
-	if (!exeName.length())
+	if (exeName.empty())
 		return false;
 
 	auto updName = exeName + "-update";

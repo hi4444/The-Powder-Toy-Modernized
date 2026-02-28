@@ -56,46 +56,49 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	int t = parts[i].type;
+	auto &part = parts[i];
+	int t = part.type;
+	auto cx = x / CELL;
+	auto cy = y / CELL;
 	switch (t)
 	{
 	case PT_PLSM:
-		if (parts[i].life <=1)
+		if (part.life <= 1)
 		{
-			if (parts[i].ctype == PT_NBLE)
+			if (part.ctype == PT_NBLE)
 			{
 				sim->part_change_type(i,x,y,PT_NBLE);
-				parts[i].life = 0;
+				part.life = 0;
 			}
-			else if ((parts[i].tmp&0x3) == 3){
+			else if ((part.tmp&0x3) == 3){
 				sim->part_change_type(i,x,y,PT_WTRV);
-				parts[i].life = 0;
-				parts[i].ctype = PT_FIRE;
+				part.life = 0;
+				part.ctype = PT_FIRE;
 			}
 		}
 		break;
 	case PT_FIRE:
-		if (parts[i].life <=1)
+		if (part.life <=1)
 		{
-			if ((parts[i].tmp&0x3) == 3){
+			if ((part.tmp&0x3) == 3){
 				sim->part_change_type(i,x,y,PT_WTRV);
-				parts[i].life = 0;
-				parts[i].ctype = PT_FIRE;
+				part.life = 0;
+				part.ctype = PT_FIRE;
 			}
-			else if (parts[i].temp<625)
+			else if (part.temp<625)
 			{
 				sim->part_change_type(i,x,y,PT_SMKE);
-				parts[i].life = sim->rng.between(250, 269);
+				part.life = sim->rng.between(250, 269);
 			}
 		}
 		break;
 	case PT_LAVA: {
-		float pres = sim->pv[y / CELL][x / CELL];
-		if (parts[i].ctype == PT_ROCK)
+		float pres = sim->pv[cy][cx];
+		if (part.ctype == PT_ROCK)
 		{			
 			if (pres <= -9)
 			{
-				parts[i].ctype = PT_STNE;
+				part.ctype = PT_STNE;
 				break;
 			}
 
@@ -104,39 +107,39 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 				if (pres <= 50)
 				{
 					if (sim->rng.chance(1, 2))
-						parts[i].ctype = PT_BRMT;
+						part.ctype = PT_BRMT;
 					else
-						parts[i].ctype = PT_CNCT;
+						part.ctype = PT_CNCT;
 				}
 				else if (pres <= 75)
 				{
 					if (pres >= 73 || sim->rng.chance(1, 8))
-						parts[i].ctype = PT_GOLD;
+						part.ctype = PT_GOLD;
 					else
-						parts[i].ctype = PT_QRTZ;
+						part.ctype = PT_QRTZ;
 				}
-				else if (pres <= 100 && parts[i].temp >= 5000)
+				else if (pres <= 100 && part.temp >= 5000)
 				{
 					if (sim->rng.chance(1, 5)) // 1 in 5 chance IRON to TTAN
-						parts[i].ctype = PT_TTAN;
+						part.ctype = PT_TTAN;
 					else
-						parts[i].ctype = PT_IRON;
+						part.ctype = PT_IRON;
 				}
-				else if (parts[i].temp >= 5000 && sim->rng.chance(1, 5))
+				else if (part.temp >= 5000 && sim->rng.chance(1, 5))
 				{
 					if (sim->rng.chance(1, 5))
-						parts[i].ctype = PT_URAN;
+						part.ctype = PT_URAN;
 					else if (sim->rng.chance(1, 5))
-						parts[i].ctype = PT_PLUT;
+						part.ctype = PT_PLUT;
 					else
-						parts[i].ctype = PT_TUNG;
+						part.ctype = PT_TUNG;
 				}
 			}
 		}
-		else if ((parts[i].ctype == PT_STNE || !parts[i].ctype) && pres >= 30.0f && (parts[i].temp > elements[PT_ROCK].HighTemperature || pres < elements[PT_ROCK].HighPressure)) // Form ROCK with pressure, if it will stay molten or not immediately break
+		else if ((part.ctype == PT_STNE || !part.ctype) && pres >= 30.0f && (part.temp > elements[PT_ROCK].HighTemperature || pres < elements[PT_ROCK].HighPressure)) // Form ROCK with pressure, if it will stay molten or not immediately break
 		{
-			parts[i].tmp2 = sim->rng.between(0, 10); // Provide tmp2 for color noise
-			parts[i].ctype = PT_ROCK;
+			part.tmp2 = sim->rng.between(0, 10); // Provide tmp2 for color noise
+			part.ctype = PT_ROCK;
 		}
 		break;
 	}
@@ -152,6 +155,7 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 				auto r = pmap[y+ry][x+rx];
 				if (!r)
 					continue;
+				auto rid = ID(r);
 				auto rt = TYP(r);
 
 				//THRM burning
@@ -159,15 +163,15 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 				{
 					if (sim->rng.chance(1, 500)) {
 						sim->part_change_type(ID(r),x+rx,y+ry,PT_LAVA);
-						parts[ID(r)].ctype = PT_BMTL;
-						parts[ID(r)].temp = 3500.0f;
+						parts[rid].ctype = PT_BMTL;
+						parts[rid].temp = 3500.0f;
 						sim->pv[(y+ry)/CELL][(x+rx)/CELL] += 50.0f;
 					} else {
-						sim->part_change_type(ID(r),x+rx,y+ry,PT_LAVA);
-						parts[ID(r)].life = 400;
-						parts[ID(r)].ctype = PT_THRM;
-						parts[ID(r)].temp = 3500.0f;
-						parts[ID(r)].tmp = 20;
+						sim->part_change_type(rid, x + rx, y + ry, PT_LAVA);
+						parts[rid].life = 400;
+						parts[rid].ctype = PT_THRM;
+						parts[rid].temp = 3500.0f;
+						parts[rid].tmp = 20;
 					}
 					continue;
 				}
@@ -176,23 +180,23 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 				{
 					if ((t==PT_FIRE || t==PT_PLSM))
 					{
-						if (parts[ID(r)].life>100 && sim->rng.chance(1, 500))
+						if (parts[rid].life > 100 && sim->rng.chance(1, 500))
 						{
-							parts[ID(r)].life = 99;
+							parts[rid].life = 99;
 						}
 					}
 					else if (t==PT_LAVA)
 					{
-						if (parts[i].ctype == PT_IRON && sim->rng.chance(1, 500))
+						if (part.ctype == PT_IRON && sim->rng.chance(1, 500))
 						{
-							parts[i].ctype = PT_METL;
-							sim->kill_part(ID(r));
+							part.ctype = PT_METL;
+							sim->kill_part(rid);
 							continue;
 						}
-						if ((parts[i].ctype == PT_STNE || parts[i].ctype == PT_NONE) && sim->rng.chance(1, 60))
+						if ((part.ctype == PT_STNE || part.ctype == PT_NONE) && sim->rng.chance(1, 60))
 						{
-							parts[i].ctype = PT_SLCN;
-							sim->kill_part(ID(r));
+							part.ctype = PT_SLCN;
+							sim->kill_part(rid);
 							continue;
 						}
 					}
@@ -201,64 +205,64 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 				if (t == PT_LAVA)
 				{
 					// LAVA(CLST) + LAVA(PQRT) + high enough temp = LAVA(CRMC) + LAVA(CRMC)
-					if (parts[i].ctype == PT_QRTZ && rt == PT_LAVA && parts[ID(r)].ctype == PT_CLST)
+					if (part.ctype == PT_QRTZ && rt == PT_LAVA && parts[rid].ctype == PT_CLST)
 					{
-						float pres = std::max(sim->pv[y/CELL][x/CELL]*10.0f, 0.0f);
-						if (parts[i].temp >= pres+elements[PT_CRMC].HighTemperature+50.0f)
+						float pres = std::max(sim->pv[cy][cx] * 10.0f, 0.0f);
+						if (part.temp >= pres+elements[PT_CRMC].HighTemperature+50.0f)
 						{
-							parts[i].ctype = PT_CRMC;
-							parts[ID(r)].ctype = PT_CRMC;
+							part.ctype = PT_CRMC;
+							parts[rid].ctype = PT_CRMC;
 						}
 					}
-					else if (rt == PT_O2 && parts[i].ctype == PT_SLCN)
+					else if (rt == PT_O2 && part.ctype == PT_SLCN)
 					{
 						switch (sim->rng.between(0, 2))
 						{
 						case 0:
-							parts[i].ctype = PT_SAND;
+							part.ctype = PT_SAND;
 							break;
 
 						case 1:
-							parts[i].ctype = PT_CLST;
+							part.ctype = PT_CLST;
 							// avoid creating CRMC.
-							if (parts[i].temp >= elements[PT_PQRT].HighTemperature * 3)
+							if (part.temp >= elements[PT_PQRT].HighTemperature * 3)
 							{
-								parts[i].ctype = PT_PQRT;
+								part.ctype = PT_PQRT;
 							}
 							break;
 
 						case 2:
-							parts[i].ctype = PT_STNE;
+							part.ctype = PT_STNE;
 							break;
 						}
-						parts[i].tmp = 0;
-						sim->kill_part(ID(r));
+						part.tmp = 0;
+						sim->kill_part(rid);
 						continue;
 					}
-					else if (rt == PT_LAVA && (parts[ID(r)].ctype == PT_METL || parts[ID(r)].ctype == PT_BMTL) && parts[i].ctype == PT_SLCN)
+					else if (rt == PT_LAVA && (parts[rid].ctype == PT_METL || parts[rid].ctype == PT_BMTL) && part.ctype == PT_SLCN)
 					{
-						parts[i].tmp = 0;
-						parts[i].ctype = PT_NSCN;
-						parts[ID(r)].ctype = PT_PSCN;
+						part.tmp = 0;
+						part.ctype = PT_NSCN;
+						parts[rid].ctype = PT_PSCN;
 					}
-					else if (rt == PT_HEAC && parts[i].ctype == PT_HEAC)
+					else if (rt == PT_HEAC && part.ctype == PT_HEAC)
 					{
-						if (parts[ID(r)].temp > elements[PT_HEAC].HighTemperature)
+						if (parts[rid].temp > elements[PT_HEAC].HighTemperature)
 						{
-							sim->part_change_type(ID(r), x+rx, y+ry, PT_LAVA);
-							parts[ID(r)].ctype = PT_HEAC;
+							sim->part_change_type(rid, x + rx, y + ry, PT_LAVA);
+							parts[rid].ctype = PT_HEAC;
 						}
 					}
-					else if (parts[i].ctype == PT_ROCK && rt == PT_LAVA && parts[ID(r)].ctype == PT_GOLD && parts[ID(r)].tmp == 0 &&
-						sim->pv[y / CELL][x / CELL] >= 50 && sim->rng.chance(1, 10000)) // Produce GOLD veins/clusters
+					else if (part.ctype == PT_ROCK && rt == PT_LAVA && parts[rid].ctype == PT_GOLD && parts[rid].tmp == 0 &&
+						sim->pv[cy][cx] >= 50 && sim->rng.chance(1, 10000)) // Produce GOLD veins/clusters
 					{
-						parts[i].ctype = PT_GOLD;
+						part.ctype = PT_GOLD;
 						if (rx > 1 || rx < -1) // Trend veins vertical
-							parts[i].tmp = 1;
+							part.tmp = 1;
 					}
-					else if (parts[i].ctype == PT_SALT && rt == PT_GLAS && parts[ID(r)].life < 234 * 120)
+					else if (part.ctype == PT_SALT && rt == PT_GLAS && parts[rid].life < 234 * 120)
 					{
-						parts[ID(r)].life++;
+						parts[rid].life++;
 					}
 				}
 
@@ -267,14 +271,14 @@ int Element_FIRE_update(UPDATE_FUNC_ARGS)
 				    //exceptions, t is the thing causing the spark and rt is what's burning
 				    (t != PT_SPRK || (rt != PT_RBDM && rt != PT_LRBD && rt != PT_INSL)) &&
 				    (t != PT_PHOT || rt != PT_INSL) &&
-				    (rt != PT_SPNG || parts[ID(r)].life == 0))
+				    (rt != PT_SPNG || parts[rid].life == 0))
 				{
-					sim->part_change_type(ID(r), x+rx, y+ry, PT_FIRE);
-					parts[ID(r)].temp = restrict_flt(elements[PT_FIRE].DefaultProperties.temp + (elements[rt].Flammable/2), MIN_TEMP, MAX_TEMP);
-					parts[ID(r)].life = sim->rng.between(180, 259);
-					parts[ID(r)].tmp = parts[ID(r)].ctype = 0;
+					sim->part_change_type(rid, x+rx, y+ry, PT_FIRE);
+					parts[rid].temp = restrict_flt(elements[PT_FIRE].DefaultProperties.temp + (elements[rt].Flammable/2), MIN_TEMP, MAX_TEMP);
+					parts[rid].life = sim->rng.between(180, 259);
+					parts[rid].tmp = parts[rid].ctype = 0;
 					if (elements[rt].Explosive)
-						sim->pv[y/CELL][x/CELL] += 0.25f * CFDS;
+						sim->pv[cy][cx] += 0.25f * CFDS;
 				}
 			}
 		}

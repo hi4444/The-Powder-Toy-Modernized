@@ -58,11 +58,11 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 {
 	info = newInfo;
 
-	if (!info.biography.length() && !editable)
+	if (info.biography.empty() && !editable)
 		info.biography = "\bgNot Provided";
-	if (!info.location.length() && !editable)
+	if (info.location.empty() && !editable)
 		info.location = "\bgNot Provided";
-	if (!info.website.length())
+	if (info.website.empty())
 		info.website = "\bgNot Provided";
 
 	// everything is on a large scroll panel

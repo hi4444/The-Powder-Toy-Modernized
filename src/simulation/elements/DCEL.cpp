@@ -1,4 +1,5 @@
 #include "simulation/ElementCommon.h"
+#include <algorithm>
 
 static int update(UPDATE_FUNC_ARGS);
 static int graphics(GRAPHICS_FUNC_ARGS);
@@ -51,30 +52,35 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
+	auto &part = parts[i];
 	float multiplier = 1.0f/1.1f;
-	if (parts[i].life!=0)
+	if (part.life != 0)
 	{
-		multiplier = 1.0f - ((parts[i].life > 100 ? 100 : (parts[i].life < 0 ? 0 : parts[i].life)) / 100.0f);
+		multiplier = 1.0f - (std::clamp(part.life, 0, 100) / 100.0f);
 	}
-	parts[i].tmp = 0;
-	for (auto rx = -1; rx <= 1; rx++)
+	part.tmp = 0;
+	constexpr int offsets[4][2] = {
+		{ -1,  0 },
+		{  1,  0 },
+		{  0, -1 },
+		{  0,  1 },
+	};
+	for (auto const &offset : offsets)
 	{
-		for (auto ry = -1; ry <= 1; ry++)
+		auto nx = x + offset[0];
+		auto ny = y + offset[1];
+		auto r = pmap[ny][nx];
+		if (!r)
+			r = sim->photons[ny][nx];
+		if (!r)
+			continue;
+		auto rt = TYP(r);
+		if (elements[rt].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY))
 		{
-			if ((rx || ry) && !(rx && ry))
-			{
-				auto r = pmap[y+ry][x+rx];
-				if (!r)
-					r = sim->photons[y+ry][x+rx];
-				if (!r)
-					continue;
-				if (elements[TYP(r)].Properties & (TYPE_PART | TYPE_LIQUID | TYPE_GAS | TYPE_ENERGY))
-				{
-					parts[ID(r)].vx *= multiplier;
-					parts[ID(r)].vy *= multiplier;
-					parts[i].tmp = 1;
-				}
-			}
+			auto rid = ID(r);
+			parts[rid].vx *= multiplier;
+			parts[rid].vy *= multiplier;
+			part.tmp = 1;
 		}
 	}
 	return 0;
