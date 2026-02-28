@@ -69,16 +69,19 @@ static int update(UPDATE_FUNC_ARGS)
 	 *
 	 * tmp - angle of lighting, measured in degrees counterclockwise from the positive x direction
 	 */
-	auto powderful = int(parts[i].temp*(1+parts[i].life/40)*LIGHTING_POWER);
+	auto &part = parts[i];
+	auto powderful = int(part.temp * (1 + part.life / 40) * LIGHTING_POWER);
+	auto cx = x / CELL;
+	auto cy = y / CELL;
 	//Element_FIRE::update(UPDATE_FUNC_SUBCALL_ARGS);
 	if (sim->aheat_enable)
 	{
-		sim->hv[y/CELL][x/CELL] += powderful/50;
-		if (sim->hv[y/CELL][x/CELL] > MAX_TEMP)
-			sim->hv[y/CELL][x/CELL] = MAX_TEMP;
+		sim->hv[cy][cx] += powderful / 50;
+		if (sim->hv[cy][cx] > MAX_TEMP)
+			sim->hv[cy][cx] = MAX_TEMP;
 		// If the LIGH was so powerful that it overflowed hv, set to max temp
-		else if (sim->hv[y/CELL][x/CELL] < 0)
-			sim->hv[y/CELL][x/CELL] = MAX_TEMP;
+		else if (sim->hv[cy][cx] < 0)
+			sim->hv[cy][cx] = MAX_TEMP;
 	}
 
 	auto &sd = SimulationData::CRef();
@@ -92,17 +95,18 @@ static int update(UPDATE_FUNC_ARGS)
 				auto r = pmap[y+ry][x+rx];
 				if (!r)
 					continue;
+				auto rid = ID(r);
 				auto rt = TYP(r);
 				if ((surround_space || elements[rt].Explosive) &&
-				    (rt!=PT_SPNG || parts[ID(r)].life==0) &&
+				    (rt!=PT_SPNG || parts[rid].life==0) &&
 					elements[rt].Flammable && sim->rng.chance(elements[rt].Flammable + int(sim->pv[(y+ry)/CELL][(x+rx)/CELL] * 10.0f), 1000))
 				{
-					sim->part_change_type(ID(r),x+rx,y+ry,PT_FIRE);
-					parts[ID(r)].temp = restrict_flt(elements[PT_FIRE].DefaultProperties.temp + (elements[rt].Flammable/2), MIN_TEMP, MAX_TEMP);
-					parts[ID(r)].life = sim->rng.between(180, 259);
-					parts[ID(r)].tmp = parts[ID(r)].ctype = 0;
+					sim->part_change_type(rid, x + rx, y + ry, PT_FIRE);
+					parts[rid].temp = restrict_flt(elements[PT_FIRE].DefaultProperties.temp + (elements[rt].Flammable/2), MIN_TEMP, MAX_TEMP);
+					parts[rid].life = sim->rng.between(180, 259);
+					parts[rid].tmp = parts[rid].ctype = 0;
 					if (elements[rt].Explosive)
-						sim->pv[y/CELL][x/CELL] += 0.25f * CFDS;
+						sim->pv[cy][cx] += 0.25f * CFDS;
 				}
 				switch (rt)
 				{
@@ -113,80 +117,81 @@ static int update(UPDATE_FUNC_ARGS)
 				case PT_THDR:
 				case PT_DMND:
 				case PT_FIRE:
-					parts[ID(r)].temp = restrict_flt(parts[ID(r)].temp+powderful/10, MIN_TEMP, MAX_TEMP);
+					parts[rid].temp = restrict_flt(parts[rid].temp + powderful/10, MIN_TEMP, MAX_TEMP);
 					continue;
 				case PT_DEUT:
 				case PT_PLUT:
-					parts[ID(r)].temp = restrict_flt(parts[ID(r)].temp+powderful, MIN_TEMP, MAX_TEMP);
-					sim->pv[y/CELL][x/CELL] = restrict_flt(sim->pv[y/CELL][x/CELL] + powderful/35, MIN_PRESSURE, MAX_PRESSURE);
+					parts[rid].temp = restrict_flt(parts[rid].temp + powderful, MIN_TEMP, MAX_TEMP);
+					sim->pv[cy][cx] = restrict_flt(sim->pv[cy][cx] + powderful/35, MIN_PRESSURE, MAX_PRESSURE);
 					if (sim->rng.chance(1, 3))
 					{
-						sim->part_change_type(ID(r),x+rx,y+ry,PT_NEUT);
-						parts[ID(r)].life = sim->rng.between(480, 959);
-						parts[ID(r)].vx = float(sim->rng.between(-5, 5));
-						parts[ID(r)].vy = float(sim->rng.between(-5, 5));
+						sim->part_change_type(rid, x + rx, y + ry, PT_NEUT);
+						parts[rid].life = sim->rng.between(480, 959);
+						parts[rid].vx = float(sim->rng.between(-5, 5));
+						parts[rid].vy = float(sim->rng.between(-5, 5));
 					}
 					break;
 				case PT_COAL:
 				case PT_BCOL:
-					if (parts[ID(r)].life>100)
-						parts[ID(r)].life = 99;
+					if (parts[rid].life > 100)
+						parts[rid].life = 99;
 					break;
 				case PT_STKM:
 					if (sim->player.elem!=PT_LIGH)
-						parts[ID(r)].life-=powderful/100;
+						parts[rid].life -= powderful/100;
 					break;
 				case PT_STKM2:
 					if (sim->player2.elem!=PT_LIGH)
-						parts[ID(r)].life-=powderful/100;
+						parts[rid].life -= powderful/100;
 					break;
 				case PT_HEAC:
-					parts[ID(r)].temp = restrict_flt(parts[ID(r)].temp+powderful/10, MIN_TEMP, MAX_TEMP);
-					if (parts[ID(r)].temp > elements[PT_HEAC].HighTemperature)
+					parts[rid].temp = restrict_flt(parts[rid].temp + powderful/10, MIN_TEMP, MAX_TEMP);
+					if (parts[rid].temp > elements[PT_HEAC].HighTemperature)
 					{
-						sim->part_change_type(ID(r), x+rx, y+ry, PT_LAVA);
-						parts[ID(r)].ctype = PT_HEAC;
+						sim->part_change_type(rid, x + rx, y + ry, PT_LAVA);
+						parts[rid].ctype = PT_HEAC;
 					}
 					break;
 				default:
 					break;
 				}
-				if ((elements[TYP(r)].Properties&PROP_CONDUCTS) && parts[ID(r)].life==0)
-					sim->create_part(ID(r),x+rx,y+ry,PT_SPRK);
-				sim->pv[y/CELL][x/CELL] = restrict_flt(sim->pv[y/CELL][x/CELL] + powderful/400, MIN_PRESSURE, MAX_PRESSURE);
-				if (!sd.IsHeatInsulator(parts[ID(r)])) parts[ID(r)].temp = restrict_flt(parts[ID(r)].temp+powderful/1.3, MIN_TEMP, MAX_TEMP);
+				if ((elements[rt].Properties & PROP_CONDUCTS) && parts[rid].life == 0)
+					sim->create_part(rid, x + rx, y + ry, PT_SPRK);
+				sim->pv[cy][cx] = restrict_flt(sim->pv[cy][cx] + powderful/400, MIN_PRESSURE, MAX_PRESSURE);
+				if (!sd.IsHeatInsulator(parts[rid]))
+					parts[rid].temp = restrict_flt(parts[rid].temp + powderful/1.3, MIN_TEMP, MAX_TEMP);
 			}
 		}
 	}
 	// Deferred branch or bend; or in removal countdown stage
-	if (parts[i].tmp2 == 1 || parts[i].tmp2 == 3 || (parts[i].tmp2 >= 6 && parts[i].tmp2 <= 8))
+	if (part.tmp2 == 1 || part.tmp2 == 3 || (part.tmp2 >= 6 && part.tmp2 <= 8))
 	{
 		// Probably set via console, make sure it doesn't stick around forever
-		if (parts[i].tmp2 >= 9)
-			parts[i].tmp2 = 7;
+		if (part.tmp2 >= 9)
+			part.tmp2 = 7;
 		else
-			parts[i].tmp2--;
+			part.tmp2--;
 		return 0;
 	}
-	if (parts[i].tmp2 == 5 || parts[i].life <= 1)
+	if (part.tmp2 == 5 || part.life <= 1)
 	{
 		sim->kill_part(i);
 		return 1;
 	}
-	auto angle = float((parts[i].tmp + sim->rng.between(-30, 30)) % 360);
-	auto multipler = int(parts[i].life * 1.5) + sim->rng.between(0, parts[i].life);
+	auto angle = float((part.tmp + sim->rng.between(-30, 30)) % 360);
+	auto multipler = int(part.life * 1.5f) + sim->rng.between(0, part.life);
 	auto rx=int(cos(angle*TPT_PI_FLT/180)*multipler);
 	auto ry=int(-sin(angle*TPT_PI_FLT/180)*multipler);
-	create_line_par(sim, x, y, x+rx, y+ry, PT_LIGH, parts[i].temp, parts[i].life, int(angle), parts[i].tmp2, i);
-	if (parts[i].tmp2 == 2)// && pNear == -1)
+	create_line_par(sim, x, y, x+rx, y+ry, PT_LIGH, part.temp, part.life, int(angle), part.tmp2, i);
+	if (part.tmp2 == 2)// && pNear == -1)
 	{
 		auto angle2 = float(((int)angle + sim->rng.between(-100, 100)) % 360);
 		rx=int(cos(angle2*TPT_PI_FLT/180)*multipler);
 		ry=int(-sin(angle2*TPT_PI_FLT/180)*multipler);
-		create_line_par(sim, x, y, x+rx, y+ry, PT_LIGH, parts[i].temp, parts[i].life, int(angle2), parts[i].tmp2, i);
+		create_line_par(sim, x, y, x+rx, y+ry, PT_LIGH, part.temp, part.life, int(angle2), part.tmp2, i);
 	}
 
-	parts[i].tmp2 = 7;
+	part.tmp2 = 7;
 	return 0;
 }
 

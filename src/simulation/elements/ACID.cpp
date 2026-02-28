@@ -54,6 +54,7 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
+	auto &part = parts[i];
 	for (auto rx = -2; rx <= 2; rx++)
 	{
 		for (auto ry = -2; ry <= 2; ry++)
@@ -63,48 +64,49 @@ static int update(UPDATE_FUNC_ARGS)
 				auto r = pmap[y+ry][x+rx];
 				if (!r)
 					continue;
+				int rid = ID(r);
 				int rt = TYP(r);
 				if (rt != PT_ACID && rt != PT_CAUS)
 				{
 					if (rt == PT_PLEX || rt == PT_NITR || rt == PT_GUNP || rt == PT_RBDM || rt == PT_LRBD)
 					{
 						sim->part_change_type(i,x,y,PT_FIRE);
-						sim->part_change_type(ID(r),x+rx,y+ry,PT_FIRE);
-						parts[i].life = 4;
-						parts[ID(r)].life = 4;
+						sim->part_change_type(rid,x+rx,y+ry,PT_FIRE);
+						part.life = 4;
+						parts[rid].life = 4;
 					}
 					else if (rt == PT_WTRV)
 					{
 						if (sim->rng.chance(1, 250))
 						{
 							sim->part_change_type(i, x, y, PT_CAUS);
-							parts[i].life = sim->rng.between(25, 74);
-							sim->kill_part(ID(r));
+							part.life = sim->rng.between(25, 74);
+							sim->kill_part(rid);
 						}
 					}
-					else if (rt != PT_CLNE && rt != PT_PCLN && ((rt != PT_FOG && rt != PT_RIME) || parts[ID(r)].tmp <= 5) && parts[i].life > 50 && sim->rng.chance(elements[rt].Hardness, 1000))
+					else if (rt != PT_CLNE && rt != PT_PCLN && ((rt != PT_FOG && rt != PT_RIME) || parts[rid].tmp <= 5) && part.life > 50 && sim->rng.chance(elements[rt].Hardness, 1000))
 					{
-						if (sim->parts_avg(i, ID(r),PT_GLAS)!= PT_GLAS)//GLAS protects stuff from acid
+						if (sim->parts_avg(i, rid, PT_GLAS) != PT_GLAS)//GLAS protects stuff from acid
 						{
 							float newtemp = ((60.0f-(float)elements[rt].Hardness))*7.0f;
 							if(newtemp < 0){
 								newtemp = 0;
 							}
-							parts[i].temp += newtemp;
-							parts[i].life--;
+							part.temp += newtemp;
+							part.life--;
 							switch (rt)
 							{
 							case PT_LITH:
-								sim->part_change_type(ID(r), x + rx, y + ry, PT_H2);
+								sim->part_change_type(rid, x + rx, y + ry, PT_H2);
 								break;
 
 							default:
-								sim->kill_part(ID(r));
+								sim->kill_part(rid);
 								break;
 							}
 						}
 					}
-					else if (parts[i].life<=50)
+					else if (part.life <= 50)
 					{
 						sim->kill_part(i);
 						return 1;
@@ -122,18 +124,19 @@ static int update(UPDATE_FUNC_ARGS)
 			auto r = pmap[y+ry][x+rx];
 			if (!r)
 				continue;
-			if (TYP(r) == PT_ACID && (parts[i].life > parts[ID(r)].life) && parts[i].life>0)//diffusion
+			int rid = ID(r);
+			if (TYP(r) == PT_ACID && (part.life > parts[rid].life) && part.life > 0)//diffusion
 			{
-				int temp = parts[i].life - parts[ID(r)].life;
+				int temp = part.life - parts[rid].life;
 				if (temp == 1)
 				{
-					parts[ID(r)].life++;
-					parts[i].life--;
+					parts[rid].life++;
+					part.life--;
 				}
 				else if (temp>0)
 				{
-					parts[ID(r)].life += temp/2;
-					parts[i].life -= temp/2;
+					parts[rid].life += temp/2;
+					part.life -= temp/2;
 				}
 			}
 		}

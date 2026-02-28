@@ -82,7 +82,7 @@ void LocalBrowserController::RenameSelected()
 	ByteString save = browserModel->GetSelected()[0];
 
 	new TextPrompt("Rename stamp", "Enter a new name for the stamp:", "", "[new name]", false, { [this, save](const String &newName) {
-		if (newName.length() == 0)
+		if (newName.empty())
 		{
 			new ErrorMessage("Error renaming stamp", "You have to specify the filename.");
 			return;

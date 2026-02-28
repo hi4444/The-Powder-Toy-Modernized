@@ -67,6 +67,11 @@ void OptionsController::SetVorticityCoeff(float vorticityCoeff)
 	model->SetVorticityCoeff(vorticityCoeff);
 }
 
+void OptionsController::SetSimFpsCap(int fpsCap)
+{
+	model->SetSimFpsCap(fpsCap);
+}
+
 void OptionsController::SetEdgeMode(int edgeMode)
 {
 	model->SetEdgeMode(edgeMode);

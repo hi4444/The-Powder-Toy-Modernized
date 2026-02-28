@@ -58,6 +58,8 @@ const float advDistanceMult = 0.7f;
 
 void Air::update_airh(void)
 {
+	float constexpr airVadv = AIR_VADV;
+	float constexpr oneMinusAirVadv = 1.0f - AIR_VADV;
 	auto &vx = sim.vx;
 	auto &vy = sim.vy;
 	auto &hv = sim.hv;
@@ -105,9 +107,11 @@ void Air::update_airh(void)
 
 			// Trying to take air temp from far away.
 			// The code is almost identical to the "far away" velocity code from update_air
-			auto tx = x - dx*advDistanceMult;
-			auto ty = y - dy*advDistanceMult;
-			if ((std::abs(dx*advDistanceMult)>1.0f || std::abs(dy*advDistanceMult)>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
+			auto dxAdv = dx * advDistanceMult;
+			auto dyAdv = dy * advDistanceMult;
+			auto tx = x - dxAdv;
+			auto ty = y - dyAdv;
+			if ((std::abs(dxAdv)>1.0f || std::abs(dyAdv)>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
 			{
 				float stepX, stepY;
 				int stepLimit;
@@ -115,13 +119,13 @@ void Air::update_airh(void)
 				{
 					stepX = (dx<0.0f) ? 1.f : -1.f;
 					stepY = -dy/fabsf(dx);
-					stepLimit = (int)(fabsf(dx*advDistanceMult));
+					stepLimit = (int)(fabsf(dxAdv));
 				}
 				else
 				{
 					stepY = (dy<0.0f) ? 1.f : -1.f;
 					stepX = -dx/fabsf(dy);
-					stepLimit = (int)(fabsf(dy*advDistanceMult));
+					stepLimit = (int)(fabsf(dyAdv));
 				}
 				tx = float(x);
 				ty = float(y);
@@ -140,8 +144,8 @@ void Air::update_airh(void)
 				if (step==stepLimit)
 				{
 					// No wall found
-					tx = x - dx*advDistanceMult;
-					ty = y - dy*advDistanceMult;
+					tx = x - dxAdv;
+					ty = y - dyAdv;
 				}
 			}
 			auto i = (int)tx;
@@ -151,11 +155,11 @@ void Air::update_airh(void)
 			if (!(bmap_blockairh[y][x]&0x8) && i>=0 && i<XCELLS-1 && j>=0 && j<YCELLS-1)
 			{
 				auto odh = dh;
-				dh *= 1.0f - AIR_VADV;
-				dh += AIR_VADV*(1.0f-tx)*(1.0f-ty)*((bmap_blockairh[j][i]&0x8) ? odh : hv[j][i]);
-				dh += AIR_VADV*tx*(1.0f-ty)*((bmap_blockairh[j][i+1]&0x8) ? odh : hv[j][i+1]);
-				dh += AIR_VADV*(1.0f-tx)*ty*((bmap_blockairh[j+1][i]&0x8) ? odh : hv[j+1][i]);
-				dh += AIR_VADV*tx*ty*((bmap_blockairh[j+1][i+1]&0x8) ? odh : hv[j+1][i+1]);
+				dh *= oneMinusAirVadv;
+				dh += airVadv*(1.0f-tx)*(1.0f-ty)*((bmap_blockairh[j][i]&0x8) ? odh : hv[j][i]);
+				dh += airVadv*tx*(1.0f-ty)*((bmap_blockairh[j][i+1]&0x8) ? odh : hv[j][i+1]);
+				dh += airVadv*(1.0f-tx)*ty*((bmap_blockairh[j+1][i]&0x8) ? odh : hv[j+1][i]);
+				dh += airVadv*tx*ty*((bmap_blockairh[j+1][i+1]&0x8) ? odh : hv[j+1][i+1]);
 			}
 
 			// Don't update if the current cell blocks ambient heat
@@ -213,6 +217,10 @@ void Air::update_airh(void)
 
 void Air::update_air(void)
 {
+	float constexpr halfAirTstepP = AIR_TSTEPP * 0.5f;
+	float constexpr halfAirTstepV = AIR_TSTEPV * 0.5f;
+	float constexpr airVadv = AIR_VADV;
+	float constexpr oneMinusAirVadv = 1.0f - AIR_VADV;
 	auto &vx = sim.vx;
 	auto &vy = sim.vy;
 	auto &pv = sim.pv;
@@ -276,7 +284,7 @@ void Air::update_air(void)
 				dp += vx[y][x-1] - vx[y][x+1];
 				dp += vy[y-1][x] - vy[y+1][x];
 				pv[y][x] *= AIR_PLOSS;
-				pv[y][x] += dp*AIR_TSTEPP * 0.5f;;
+				pv[y][x] += dp * halfAirTstepP;
 			}
 		}
 
@@ -290,8 +298,8 @@ void Air::update_air(void)
 				dy += pv[y-1][x] - pv[y+1][x];
 				vx[y][x] *= AIR_VLOSS;
 				vy[y][x] *= AIR_VLOSS;
-				vx[y][x] += dx*AIR_TSTEPV * 0.5f;
-				vy[y][x] += dy*AIR_TSTEPV * 0.5f;
+				vx[y][x] += dx * halfAirTstepV;
+				vy[y][x] += dy * halfAirTstepV;
 				if (bmap_blockair[y][x-1] || bmap_blockair[y][x] || bmap_blockair[y][x+1])
 					vx[y][x] = 0;
 				if (bmap_blockair[y-1][x] || bmap_blockair[y][x] || bmap_blockair[y+1][x])
@@ -329,9 +337,11 @@ void Air::update_air(void)
 					}
 				}
 
-				auto tx = x - dx*advDistanceMult;
-				auto ty = y - dy*advDistanceMult;
-				if ((std::abs(dx*advDistanceMult)>1.0f || std::abs(dy*advDistanceMult)>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
+				auto dxAdv = dx * advDistanceMult;
+				auto dyAdv = dy * advDistanceMult;
+				auto tx = x - dxAdv;
+				auto ty = y - dyAdv;
+				if ((std::abs(dxAdv)>1.0f || std::abs(dyAdv)>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
 				{
 					// Trying to take velocity from far away, check whether there is an intervening wall.
 					// Step from current position to desired source location, looking for walls, with either the x or y step size being 1 cell
@@ -341,13 +351,13 @@ void Air::update_air(void)
 					{
 						stepX = (dx<0.0f) ? 1.f : -1.f;
 						stepY = -dy/fabsf(dx);
-						stepLimit = (int)(fabsf(dx*advDistanceMult));
+						stepLimit = (int)(fabsf(dxAdv));
 					}
 					else
 					{
 						stepY = (dy<0.0f) ? 1.f : -1.f;
 						stepX = -dx/fabsf(dy);
-						stepLimit = (int)(fabsf(dy*advDistanceMult));
+						stepLimit = (int)(fabsf(dyAdv));
 					}
 					tx = float(x);
 					ty = float(y);
@@ -366,8 +376,8 @@ void Air::update_air(void)
 					if (step==stepLimit)
 					{
 						// No wall found
-						tx = x - dx*advDistanceMult;
-						ty = y - dy*advDistanceMult;
+						tx = x - dxAdv;
+						ty = y - dyAdv;
 					}
 				}
 				auto i = (int)tx;
@@ -376,29 +386,33 @@ void Air::update_air(void)
 				ty -= j;
 				if (!bmap_blockair[y][x] && i>=2 && i<XCELLS-3 && j>=2 && j<YCELLS-3)
 				{
-					dx *= 1.0f - AIR_VADV;
-					dy *= 1.0f - AIR_VADV;
+					dx *= oneMinusAirVadv;
+					dy *= oneMinusAirVadv;
 
-					dx += AIR_VADV*(1.0f-tx)*(1.0f-ty)*vx[j][i];
-					dy += AIR_VADV*(1.0f-tx)*(1.0f-ty)*vy[j][i];
+					dx += airVadv*(1.0f-tx)*(1.0f-ty)*vx[j][i];
+					dy += airVadv*(1.0f-tx)*(1.0f-ty)*vy[j][i];
 
-					dx += AIR_VADV*tx*(1.0f-ty)*vx[j][i+1];
-					dy += AIR_VADV*tx*(1.0f-ty)*vy[j][i+1];
+					dx += airVadv*tx*(1.0f-ty)*vx[j][i+1];
+					dy += airVadv*tx*(1.0f-ty)*vy[j][i+1];
 
-					dx += AIR_VADV*(1.0f-tx)*ty*vx[j+1][i];
-					dy += AIR_VADV*(1.0f-tx)*ty*vy[j+1][i];
+					dx += airVadv*(1.0f-tx)*ty*vx[j+1][i];
+					dy += airVadv*(1.0f-tx)*ty*vy[j+1][i];
 
-					dx += AIR_VADV*tx*ty*vx[j+1][i+1];
-					dy += AIR_VADV*tx*ty*vy[j+1][i+1];
+					dx += airVadv*tx*ty*vx[j+1][i+1];
+					dy += airVadv*tx*ty*vy[j+1][i+1];
 				}
 
 				//Vorticity confinement
 				if (vorticityCoeff > 0.0f && x > 1 && x < XCELLS-2 && y > 1 && y < YCELLS-2)
 				{
-					auto dwx = (std::abs(vorticity(sim, y, x+1)) - std::abs(vorticity(sim, y, x-1)))*0.5f;
-					auto dwy = (std::abs(vorticity(sim, y+1, x)) - std::abs(vorticity(sim, y-1, x)))*0.5f;
+					auto wxp = (vy[y][x+2] - vy[y][x] - (vx[y+1][x+1] - vx[y-1][x+1]))*0.5f;
+					auto wxm = (vy[y][x] - vy[y][x-2] - (vx[y+1][x-1] - vx[y-1][x-1]))*0.5f;
+					auto wyp = (vy[y+1][x+1] - vy[y+1][x-1] - (vx[y+2][x] - vx[y][x]))*0.5f;
+					auto wym = (vy[y-1][x+1] - vy[y-1][x-1] - (vx[y][x] - vx[y-2][x]))*0.5f;
+					auto w = (vy[y][x+1] - vy[y][x-1] - (vx[y+1][x] - vx[y-1][x]))*0.5f;
+					auto dwx = (std::abs(wxp) - std::abs(wxm))*0.5f;
+					auto dwy = (std::abs(wyp) - std::abs(wym))*0.5f;
 					auto norm = std::sqrt(dwx*dwx + dwy*dwy);
-					auto w = vorticity(sim, y, x);
 
 					dx += vorticityCoeff/5.0f * dwy / (norm + 0.001f) * w;
 					dy += vorticityCoeff/5.0f * (-dwx) / (norm + 0.001f) * w;
@@ -473,8 +487,9 @@ void Air::ApproximateBlockAirMaps()
 	{
 		for (int x = 0; x < XCELLS; x++)
 		{
-			bmap_blockair[y][x] = (sim.bmap[y][x]==WL_WALL || sim.bmap[y][x]==WL_WALLELEC || sim.bmap[y][x]==WL_BLOCKAIR || (sim.bmap[y][x]==WL_EWALL && !sim.emap[y][x]));
-			bmap_blockairh[y][x] = (bmap_blockair[y][x] || sim.bmap[y][x]==WL_GRAV) ? 0x8 : 0;
+			auto wall = sim.bmap[y][x];
+			bmap_blockair[y][x] = (wall==WL_WALL || wall==WL_WALLELEC || wall==WL_BLOCKAIR || (wall==WL_EWALL && !sim.emap[y][x]));
+			bmap_blockairh[y][x] = (bmap_blockair[y][x] || wall==WL_GRAV) ? 0x8 : 0;
 		}
 	}
 

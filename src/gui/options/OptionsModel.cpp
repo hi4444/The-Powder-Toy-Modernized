@@ -7,6 +7,8 @@
 #include "common/clipboard/Clipboard.h"
 #include "gui/interface/Engine.h"
 #include "gui/game/GameModel.h"
+#include "gui/game/GameView.h"
+#include "FpsLimit.h"
 #include "client/Client.h"
 
 OptionsModel::OptionsModel(GameModel * gModel_) {
@@ -127,6 +129,40 @@ void OptionsModel::SetVorticityCoeff(float vorticityCoeff)
 {
 	GlobalPrefs::Ref().Set("Simulation.VorticityCoeff", vorticityCoeff);
 	gModel->SetVorticityCoeff(vorticityCoeff);
+	notifySettingsChanged();
+}
+
+int OptionsModel::GetSimFpsCap()
+{
+	auto simLimit = gModel->GetView()->GetSimFpsLimit();
+	if (std::holds_alternative<FpsLimitNone>(simLimit))
+	{
+		return 0;
+	}
+	auto fpsCap = int(std::get<FpsLimitExplicit>(simLimit).value);
+	if (fpsCap < 2)
+	{
+		fpsCap = 2;
+	}
+	return fpsCap;
+}
+
+void OptionsModel::SetSimFpsCap(int fpsCap)
+{
+	if (fpsCap <= 0)
+	{
+		GlobalPrefs::Ref().Set("Simulation.FpsCap", 0);
+		gModel->GetView()->SetSimFpsLimit(FpsLimitNone{});
+	}
+	else
+	{
+		if (fpsCap < 2)
+		{
+			fpsCap = 2;
+		}
+		GlobalPrefs::Ref().Set("Simulation.FpsCap", fpsCap);
+		gModel->GetView()->SetSimFpsLimit(FpsLimitExplicit{ float(fpsCap) });
+	}
 	notifySettingsChanged();
 }
 

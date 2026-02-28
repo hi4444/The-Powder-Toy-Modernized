@@ -107,6 +107,7 @@ static const std::vector<Function> functions = {
 ValueType CommandInterface::testType(String word)
 {
 	size_t i = 0;
+	size_t const length = word.length();
 	String::value_type const *rawWord = word.c_str();
 	//Function
 	for (auto &function : functions)
@@ -118,13 +119,13 @@ ValueType CommandInterface::testType(String word)
 	}
 
 	//Basic type
-	for (i = 0; i < word.length(); i++)
+	for (i = 0; i < length; i++)
 	{
 		if (!(rawWord[i] >= '0' && rawWord[i] <= '9') && !(rawWord[i] == '-' && !i))
 		{
 			if (rawWord[i] == '.' && rawWord[i+1])
 			{
-				for (i++; i < word.length(); i++)
+				for (i++; i < length; i++)
 				{
 					if (!((rawWord[i] >= '0' && rawWord[i] <= '9')))
 					{
@@ -135,7 +136,7 @@ ValueType CommandInterface::testType(String word)
 			}
 			else if (rawWord[i] == ',' && rawWord[i+1] >= '0' && rawWord[i+1] <= '9')
 			{
-				for (i++; i < word.length(); i++)
+				for (i++; i < length; i++)
 				{
 					if (!(rawWord[i] >= '0' && rawWord[i] <= '9'))
 					{
@@ -149,7 +150,7 @@ ValueType CommandInterface::testType(String word)
 				|| (rawWord[i+1] >= 'a' && rawWord[i+1] <= 'f')
 				|| (rawWord[i+1] >= 'A' && rawWord[i+1] <= 'F')))
 			{
-				for (i++; i < word.length(); i++)
+				for (i++; i < length; i++)
 				{
 					if (!((rawWord[i] >= '0' && rawWord[i] <= '9') || (rawWord[i] >= 'a' && rawWord[i] <= 'f') || (rawWord[i] >= 'A' && rawWord[i] <= 'F')))
 					{
