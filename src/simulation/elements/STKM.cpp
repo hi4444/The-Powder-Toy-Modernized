@@ -113,6 +113,8 @@ int Element_STKM_run_stickman(playerst *playerp, UPDATE_FUNC_ARGS)
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
 	int r, rx, ry;
+	const int cx = x / CELL;
+	const int cy = y / CELL;
 	int t = parts[i].type;
 	float pp, d;
 	float dt = 0.9f;///(FPSB*FPSB);  //Delta time in square
@@ -134,7 +136,7 @@ int Element_STKM_run_stickman(playerst *playerp, UPDATE_FUNC_ARGS)
 		parts[i].temp += 1;
 
 	//Death
-	if (parts[i].life<1 || (sim->pv[y/CELL][x/CELL]>=4.5f && !playerp->fan) ) //If his HP is less than 0 or there is very big wind...
+	if (parts[i].life<1 || (sim->pv[cy][cx]>=4.5f && !playerp->fan) ) //If his HP is less than 0 or there is very big wind...
 	{
 		die(sim, playerp, i);
 		return 1;
@@ -242,8 +244,12 @@ int Element_STKM_run_stickman(playerst *playerp, UPDATE_FUNC_ARGS)
 
 	gx = (playerp->legs[4] + playerp->legs[12])/2 - gvy;
 	gy = (playerp->legs[5] + playerp->legs[13])/2 + gvx;
-	dl = pow(gx - playerp->legs[4], 2) + pow(gy - playerp->legs[5], 2);
-	dr = pow(gx - playerp->legs[12], 2) + pow(gy - playerp->legs[13], 2);
+	float dlx = gx - playerp->legs[4];
+	float dly = gy - playerp->legs[5];
+	float drx = gx - playerp->legs[12];
+	float dry = gy - playerp->legs[13];
+	dl = dlx*dlx + dly*dly;
+	dr = drx*drx + dry*dry;
 
 	//Go left
 	if (((int)(playerp->comm)&0x01) == 0x01)
@@ -527,25 +533,33 @@ int Element_STKM_run_stickman(playerst *playerp, UPDATE_FUNC_ARGS)
 	}
 
 	//Simulation of joints
-	d = 25/(pow((playerp->legs[0]-playerp->legs[4]), 2) + pow((playerp->legs[1]-playerp->legs[5]), 2)+25) - 0.5;  //Fast distance
+	float dx = playerp->legs[0] - playerp->legs[4];
+	float dy = playerp->legs[1] - playerp->legs[5];
+	d = 25/(dx*dx + dy*dy + 25) - 0.5;  //Fast distance
 	playerp->legs[4] -= (playerp->legs[0]-playerp->legs[4])*d;
 	playerp->legs[5] -= (playerp->legs[1]-playerp->legs[5])*d;
 	playerp->legs[0] += (playerp->legs[0]-playerp->legs[4])*d;
 	playerp->legs[1] += (playerp->legs[1]-playerp->legs[5])*d;
 
-	d = 25/(pow((playerp->legs[8]-playerp->legs[12]), 2) + pow((playerp->legs[9]-playerp->legs[13]), 2)+25) - 0.5;
+	dx = playerp->legs[8] - playerp->legs[12];
+	dy = playerp->legs[9] - playerp->legs[13];
+	d = 25/(dx*dx + dy*dy + 25) - 0.5;
 	playerp->legs[12] -= (playerp->legs[8]-playerp->legs[12])*d;
 	playerp->legs[13] -= (playerp->legs[9]-playerp->legs[13])*d;
 	playerp->legs[8] += (playerp->legs[8]-playerp->legs[12])*d;
 	playerp->legs[9] += (playerp->legs[9]-playerp->legs[13])*d;
 
-	d = 36/(pow((playerp->legs[0]-parts[i].x), 2) + pow((playerp->legs[1]-parts[i].y), 2)+36) - 0.5;
+	dx = playerp->legs[0] - parts[i].x;
+	dy = playerp->legs[1] - parts[i].y;
+	d = 36/(dx*dx + dy*dy + 36) - 0.5;
 	parts[i].vx -= (playerp->legs[0]-parts[i].x)*d;
 	parts[i].vy -= (playerp->legs[1]-parts[i].y)*d;
 	playerp->legs[0] += (playerp->legs[0]-parts[i].x)*d;
 	playerp->legs[1] += (playerp->legs[1]-parts[i].y)*d;
 
-	d = 36/(pow((playerp->legs[8]-parts[i].x), 2) + pow((playerp->legs[9]-parts[i].y), 2)+36) - 0.5;
+	dx = playerp->legs[8] - parts[i].x;
+	dy = playerp->legs[9] - parts[i].y;
+	d = 36/(dx*dx + dy*dy + 36) - 0.5;
 	parts[i].vx -= (playerp->legs[8]-parts[i].x)*d;
 	parts[i].vy -= (playerp->legs[9]-parts[i].y)*d;
 	playerp->legs[8] += (playerp->legs[8]-parts[i].x)*d;
@@ -579,7 +593,9 @@ int Element_STKM_run_stickman(playerst *playerp, UPDATE_FUNC_ARGS)
 	}
 
 	//Keeping legs distance
-	if ((pow((playerp->legs[4] - playerp->legs[12]), 2) + pow((playerp->legs[5]-playerp->legs[13]), 2))<16)
+	dx = playerp->legs[4] - playerp->legs[12];
+	dy = playerp->legs[5] - playerp->legs[13];
+	if ((dx*dx + dy*dy) < 16)
 	{
 		float tvx, tvy;
 		tvx = -gvy;
@@ -595,7 +611,9 @@ int Element_STKM_run_stickman(playerst *playerp, UPDATE_FUNC_ARGS)
 		}
 	}
 
-	if ((pow((playerp->legs[0] - playerp->legs[8]), 2) + pow((playerp->legs[1]-playerp->legs[9]), 2))<16)
+	dx = playerp->legs[0] - playerp->legs[8];
+	dy = playerp->legs[1] - playerp->legs[9];
+	if ((dx*dx + dy*dy) < 16)
 	{
 		float tvx, tvy;
 		tvx = -gvy;
@@ -633,20 +651,23 @@ void Element_STKM_interact(Simulation *sim, playerst *playerp, int i, int x, int
 	r = sim->pmap[y][x];
 	if (r)
 	{
+		int rid = ID(r);
+		int typ = TYP(r);
+		auto &rpart = sim->parts[rid];
 		int damage = 0;
-		if (TYP(r)==PT_SPRK && playerp->elem!=PT_LIGH) //If on charge
+		if (typ == PT_SPRK && playerp->elem!=PT_LIGH) //If on charge
 		{
 			damage += sim->rng.between(32, 51);
 		}
 
-		if (!sd.IsHeatInsulator(sim->parts[ID(r)]) && ((playerp->elem!=PT_LIGH && sim->parts[ID(r)].temp>=323) || sim->parts[ID(r)].temp<=243) && (!playerp->rocketBoots || TYP(r)!=PT_PLSM))
+		if (!sd.IsHeatInsulator(rpart) && ((playerp->elem!=PT_LIGH && rpart.temp>=323) || rpart.temp<=243) && (!playerp->rocketBoots || typ != PT_PLSM))
 		{
 			damage += 2;
 			playerp->accs[3] -= 1;
 		}
 
-		if (elements[TYP(r)].Properties&PROP_DEADLY)
-			switch (TYP(r))
+		if (elements[typ].Properties&PROP_DEADLY)
+			switch (typ)
 			{
 				case PT_ACID:
 					damage += 5;
@@ -656,7 +677,7 @@ void Element_STKM_interact(Simulation *sim, playerst *playerp, int i, int x, int
 					break;
 			}
 
-		if (elements[TYP(r)].Properties&PROP_RADIOACTIVE)
+		if (elements[typ].Properties&PROP_RADIOACTIVE)
 			damage++;
 
 		if (damage)
@@ -669,33 +690,33 @@ void Element_STKM_interact(Simulation *sim, playerst *playerp, int i, int x, int
 			sim->parts[i].life -= damage;
 		}
 
-		if (TYP(r)==PT_PRTI && sim->parts[i].type)
+		if (typ == PT_PRTI && sim->parts[i].type)
 		{
 			int nnx, count=1;//gives rx=0, ry=1 in update_PRTO
-			sim->parts[ID(r)].tmp = (int)((sim->parts[ID(r)].temp-73.15f)/100+1);
-			if (sim->parts[ID(r)].tmp>=CHANNELS) sim->parts[ID(r)].tmp = CHANNELS-1;
-			else if (sim->parts[ID(r)].tmp<0) sim->parts[ID(r)].tmp = 0;
+			rpart.tmp = (int)((rpart.temp-73.15f)/100+1);
+			if (rpart.tmp>=CHANNELS) rpart.tmp = CHANNELS-1;
+			else if (rpart.tmp<0) rpart.tmp = 0;
 			for (nnx=0; nnx<80; nnx++)
-				if (!sim->portalp[sim->parts[ID(r)].tmp][count][nnx].type)
+				if (!sim->portalp[rpart.tmp][count][nnx].type)
 				{
-					sim->portalp[sim->parts[ID(r)].tmp][count][nnx] = sim->parts[i];
+					sim->portalp[rpart.tmp][count][nnx] = sim->parts[i];
 					sim->kill_part(i);
 					//stop new STKM/fighters being created to replace the ones in the portal:
 					playerp->spwn = 1;
-					if (sim->portalp[sim->parts[ID(r)].tmp][count][nnx].type==PT_FIGH)
+					if (sim->portalp[rpart.tmp][count][nnx].type==PT_FIGH)
 						sim->fighcount++;
 					break;
 				}
 		}
-		if ((TYP(r)==PT_BHOL || TYP(r)==PT_NBHL) && sim->parts[i].type)
+		if ((typ == PT_BHOL || typ == PT_NBHL) && sim->parts[i].type)
 		{
 			if (!sim->legacy_enable)
 			{
-				sim->parts[ID(r)].temp = restrict_flt(sim->parts[ID(r)].temp+sim->parts[i].temp/2, MIN_TEMP, MAX_TEMP);
+				rpart.temp = restrict_flt(rpart.temp + sim->parts[i].temp/2, MIN_TEMP, MAX_TEMP);
 			}
 			sim->kill_part(i);
 		}
-		if ((TYP(r)==PT_VOID || (TYP(r)==PT_PVOD && sim->parts[ID(r)].life==10)) && (!sim->parts[ID(r)].ctype || (sim->parts[ID(r)].ctype==sim->parts[i].type)!=(sim->parts[ID(r)].tmp&1)) && sim->parts[i].type)
+		if ((typ == PT_VOID || (typ == PT_PVOD && rpart.life == 10)) && (!rpart.ctype || (rpart.ctype == sim->parts[i].type) != (rpart.tmp & 1)) && sim->parts[i].type)
 		{
 			sim->kill_part(i);
 		}

@@ -51,6 +51,7 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
+	auto &part = parts[i];
 	bool converted = false;
 	for (int rx = -2; rx <= 2; rx++)
 	{
@@ -61,31 +62,33 @@ static int update(UPDATE_FUNC_ARGS)
 				int r = pmap[y+ry][x+rx];
 				if (!r)
 					continue;
-				if (TYP(r) == PT_GAS)
+				int rid = ID(r);
+				int rt = TYP(r);
+				if (rt == PT_GAS)
 				{
 					if (sim->pv[(y+ry)/CELL][(x+rx)/CELL] > 3)
 					{
-						sim->part_change_type(ID(r), x+rx, y+ry, PT_RFRG);
+						sim->part_change_type(rid, x+rx, y+ry, PT_RFRG);
 						sim->part_change_type(i, x, y, PT_RFRG);
 						converted = true;
 					}
 				}
-				else if (TYP(r) != PT_ACID && TYP(r) != PT_CAUS && TYP(r) != PT_RFRG && TYP(r) != PT_RFGL)
+				else if (rt != PT_ACID && rt != PT_CAUS && rt != PT_RFRG && rt != PT_RFGL)
 				{
-					if ((TYP(r) != PT_CLNE && TYP(r) != PT_PCLN && ((TYP(r) != PT_FOG && TYP(r) != PT_RIME) || parts[ID(r)].tmp <= 5) && sim->rng.chance(elements[TYP(r)].Hardness, 1000)) && parts[i].life > 50)
+					if ((rt != PT_CLNE && rt != PT_PCLN && ((rt != PT_FOG && rt != PT_RIME) || parts[rid].tmp <= 5) && sim->rng.chance(elements[rt].Hardness, 1000)) && part.life > 50)
 					{
 						// GLAS protects stuff from acid
-						if (sim->parts_avg(i, ID(r),PT_GLAS) != PT_GLAS)
+						if (sim->parts_avg(i, rid, PT_GLAS) != PT_GLAS)
 						{
-							float newtemp = ((60.0f - (float)elements[TYP(r)].Hardness)) * 7.0f;
+							float newtemp = ((60.0f - (float)elements[rt].Hardness)) * 7.0f;
 							if (newtemp < 0)
 								newtemp = 0;
-							parts[i].temp += newtemp;
-							parts[i].life--;
-							sim->kill_part(ID(r));
+							part.temp += newtemp;
+							part.life--;
+							sim->kill_part(rid);
 						}
 					}
-					else if (parts[i].life <= 50)
+					else if (part.life <= 50)
 					{
 						sim->kill_part(i);
 						return 1;

@@ -162,7 +162,7 @@ void SearchView::NotifyMessageOfTheDay(Client * sender)
 
 void SearchView::doSearch()
 {
-	if (searchField->GetText().length() > 3 || !searchField->GetText().length())
+	if (searchField->GetText().length() > 3 || searchField->GetText().empty())
 		c->DoSearch(searchField->GetText());
 }
 

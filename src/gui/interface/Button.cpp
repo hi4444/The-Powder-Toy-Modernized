@@ -24,7 +24,7 @@ Button::Button(Point position, Point size, String buttonText, String toolTip):
 void Button::TextPosition(String ButtonText)
 {
 	buttonDisplayText = ButtonText;
-	if(buttonDisplayText.length())
+	if(!buttonDisplayText.empty())
 	{
 		if (Graphics::TextSize(buttonDisplayText).X - 1 > Size.X - (Appearance.icon ? 22 : 0))
 		{
@@ -204,7 +204,7 @@ void Button::OnMouseEnter(int x, int y)
 
 void Button::OnMouseHover(int x, int y)
 {
-	if(Enabled && toolTip.length()>0 && GetParentWindow())
+	if(Enabled && !toolTip.empty() && GetParentWindow())
 	{
 		GetParentWindow()->ToolTip(Position, toolTip);
 	}

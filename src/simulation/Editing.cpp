@@ -9,6 +9,7 @@
 #include "ElementClasses.h"
 #include "graphics/Renderer.h"
 #include "gui/game/Brush.h"
+#include <algorithm>
 #include <iostream>
 #include <cmath>
 
@@ -109,13 +110,11 @@ void Simulation::clear_area(int area_x, int area_y, int area_w, int area_h)
 			emap[y][x] = 0;
 		}
 	}
-	for( int i = signs.size()-1; i >= 0; i--)
-	{
-		if (signs[i].text.length() && signs[i].x >= area_x && signs[i].y >= area_y && signs[i].x <= area_x+area_w && signs[i].y <= area_y+area_h)
-		{
-			signs.erase(signs.begin()+i);
-		}
-	}
+	signs.erase(std::remove_if(signs.begin(), signs.end(), [=](sign const &s) {
+		return !s.text.empty() &&
+			s.x >= area_x && s.y >= area_y &&
+			s.x <= area_x + area_w && s.y <= area_y + area_h;
+	}), signs.end());
 }
 
 SimulationSample Simulation::GetSample(int x, int y)
@@ -214,9 +213,10 @@ int Simulation::CreateWalls(int x, int y, int rx, int ry, int wall, Brush const 
 						{
 							delete_part(wallX*CELL+i, wallY*CELL+j);
 						}
-					for (int i = signs.size()-1; i >= 0; i--)
-						if (signs[i].x >= wallX*CELL && signs[i].y >= wallY*CELL && signs[i].x <= (wallX+1)*CELL && signs[i].y <= (wallY+1)*CELL)
-							signs.erase(signs.begin()+i);
+					signs.erase(std::remove_if(signs.begin(), signs.end(), [=](sign const &s) {
+						return s.x >= wallX * CELL && s.y >= wallY * CELL &&
+							s.x <= (wallX + 1) * CELL && s.y <= (wallY + 1) * CELL;
+					}), signs.end());
 					bmap[wallY][wallX] = 0;
 				}
 				else

@@ -25,6 +25,7 @@ class OptionsView: public ui::Window
 	ui::Textbox *ambientAirTemp{};
 	ui::Button *ambientAirTempPreview{};
 	ui::Textbox *vorticityCoeff{};
+	ui::Textbox *simFpsCap{};
 	ui::DropDown *gravityMode{};
 	ui::DropDown *edgeMode{};
 	ui::DropDown *temperatureScale{};
@@ -55,6 +56,8 @@ class OptionsView: public ui::Window
 	void UpdateAirTemp(String temp, bool isDefocus);
 	void VorticityCoeffToTextBox(float vorticity);
 	void UpdateVorticityCoeff(String cort, bool isDefocus);
+	void SimFpsCapToTextBox(int fpsCap);
+	void UpdateSimFpsCap(String cap, bool isDefocus);
 	void UpdateStartupRequestStatus();
 public:
 	OptionsView();

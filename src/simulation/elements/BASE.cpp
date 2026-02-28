@@ -54,48 +54,49 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
+	auto &part = parts[i];
 
 	//Reset spark effect
-	parts[i].tmp = 0;
+	part.tmp = 0;
 
-	if (parts[i].life < 1)
-		parts[i].life = 1;
+	if (part.life < 1)
+		part.life = 1;
 
-	if (parts[i].life > 100)
-		parts[i].life = 100;
+	if (part.life > 100)
+		part.life = 100;
 
 	float pres = sim->pv[y/CELL][x/CELL];
 
 	//Base evaporates into BOYL or increases concentration
-	if (parts[i].life < 100 && pres < 10.0f && parts[i].temp > (120.0f + 273.15f))
+	if (part.life < 100 && pres < 10.0f && part.temp > (120.0f + 273.15f))
 	{
 		//Slow down boiling
 		if (sim->rng.chance(1, 20))
 		{
 			//This way we preserve the total amount of concentrated BASE in the solution
-			if (sim->rng.chance(1, parts[i].life+1))
+			if (sim->rng.chance(1, part.life+1))
 			{
-				auto temp = parts[i].temp;
+				auto temp = part.temp;
 				sim->create_part(i, x, y, PT_BOYL);
-				parts[i].temp = temp;
+				part.temp = temp;
 				return 1;
 			}
 			else
 			{
-				parts[i].life++;
+				part.life++;
 				//Enthalpy of vaporization
-				parts[i].temp -= 20.0f / ((float)parts[i].life);
+				part.temp -= 20.0f / ((float)part.life);
 			}
 		}
 	}
 
 	//Base's freezing point lowers with its concentration
-	if (parts[i].temp < (273.15f - ((float)parts[i].life)/4.0f))
+	if (part.temp < (273.15f - ((float)part.life)/4.0f))
 	{
 		//We don't save base's concentration, so ICEI(BASE) will unfreeze into life = 0
 		sim->part_change_type(i, x, y, PT_ICEI);
-		parts[i].ctype = PT_BASE;
-		parts[i].life = 0;
+		part.ctype = PT_BASE;
+		part.life = 0;
 		return 1;
 	}
 
@@ -110,80 +111,82 @@ static int update(UPDATE_FUNC_ARGS)
 				if (!r)
 					continue;
 				int rt = TYP(r);
+				int rid = ID(r);
+				auto &rpart = parts[rid];
 
 				//Don't react with some elements
 				if (rt != PT_BASE && rt != PT_SALT && rt != PT_SLTW && rt != PT_BOYL && rt != PT_MERC &&
 					       	rt != PT_BMTL && rt != PT_BRMT && rt != PT_SOAP && rt != PT_CLNE && rt != PT_PCLN &&
-						!(rt == PT_ICEI && parts[ID(r)].ctype == PT_BASE) && !(rt == PT_SNOW && parts[ID(r)].ctype == PT_BASE) &&
-						!(rt == PT_SPRK && parts[ID(r)].ctype == PT_BMTL) && !(rt == PT_SPRK && parts[ID(r)].ctype == PT_BRMT))
+						!(rt == PT_ICEI && rpart.ctype == PT_BASE) && !(rt == PT_SNOW && rpart.ctype == PT_BASE) &&
+						!(rt == PT_SPRK && rpart.ctype == PT_BMTL) && !(rt == PT_SPRK && rpart.ctype == PT_BRMT))
 				{
 					//Base is diluted by water
-					if (parts[i].life > 1 && (rt == PT_WATR || rt == PT_DSTW || rt == PT_CBNW))
+					if (part.life > 1 && (rt == PT_WATR || rt == PT_DSTW || rt == PT_CBNW))
 					{
 					       	if (sim->rng.chance(1, 20))
 						{
-							int saturh = parts[i].life/2;
+							int saturh = part.life/2;
 
-							sim->part_change_type(ID(r), x+rx, y+ry, PT_BASE);
-							parts[ID(r)].life = saturh;
-							parts[ID(r)].temp += ((float)saturh)/10.0f;
-							parts[i].life -= saturh;
+							sim->part_change_type(rid, x+rx, y+ry, PT_BASE);
+							rpart.life = saturh;
+							rpart.temp += ((float)saturh)/10.0f;
+							part.life -= saturh;
 						}
 					} //Base neutralizes acid
-					else if (rt == PT_ACID && parts[i].life >= parts[ID(r)].life)
+					else if (rt == PT_ACID && part.life >= rpart.life)
 					{
 						sim->part_change_type(i, x, y, PT_SLTW);
-						sim->part_change_type(ID(r), x+rx, y+ry, PT_SLTW);
+						sim->part_change_type(rid, x+rx, y+ry, PT_SLTW);
 						return 1;
 					} //Base neutralizes CAUS
-					else if (rt == PT_CAUS && parts[i].life >= parts[ID(r)].life)
+					else if (rt == PT_CAUS && part.life >= rpart.life)
 					{
 						sim->part_change_type(i, x, y, PT_SLTW);
-						sim->kill_part(ID(r));
+						sim->kill_part(rid);
 						return 1;
 					} //BASE + OIL = SOAP
-					else if (parts[i].life >= 70 && rt == PT_OIL)
+					else if (part.life >= 70 && rt == PT_OIL)
 					{
 						sim->part_change_type(i, x, y, PT_SOAP);
-						parts[i].tmp = parts[i].tmp2 = parts[i].ctype = 0;
-						sim->kill_part(ID(r));
+						part.tmp = part.tmp2 = part.ctype = 0;
+						sim->kill_part(rid);
 						return 1;
 					} //BASE + GOO = GEL
-					else if (parts[i].life > 1 && rt == PT_GOO)
+					else if (part.life > 1 && rt == PT_GOO)
 					{
-						sim->create_part(ID(r), x+rx, y+ry, PT_GEL);
-						parts[i].life--;
+						sim->create_part(rid, x+rx, y+ry, PT_GEL);
+						part.life--;
 					} //BASE + BCOL = GUNP
-					else if (parts[i].life > 1 && rt == PT_BCOL)
+					else if (part.life > 1 && rt == PT_BCOL)
 					{
-						sim->create_part(ID(r), x+rx, y+ry, PT_GUNP);
-						parts[i].life--;
+						sim->create_part(rid, x+rx, y+ry, PT_GUNP);
+						part.life--;
 					} //BASE + Molten ROCK = MERC
-				        else if (rt == PT_LAVA && parts[ID(r)].ctype == PT_ROCK && pres >= 10.0f && sim->rng.chance(1, 1000))
+				        else if (rt == PT_LAVA && rpart.ctype == PT_ROCK && pres >= 10.0f && sim->rng.chance(1, 1000))
 					{
 						sim->part_change_type(i, x, y, PT_MERC);
-						parts[i].life = 0;
-						parts[i].tmp = 10;
+						part.life = 0;
+						part.tmp = 10;
 
-						sim->kill_part(ID(r));
+						sim->kill_part(rid);
 						return 1;
 					} //Base rusts conductive solids
-					else if (parts[i].life >= 10 &&
+					else if (part.life >= 10 &&
 						       	(elements[rt].Properties & (TYPE_SOLID|PROP_CONDUCTS)) == (TYPE_SOLID|PROP_CONDUCTS) && sim->rng.chance(1, 10))
 					{
-						sim->part_change_type(ID(r), x+rx, y+ry, PT_BMTL);
-						parts[ID(r)].tmp = sim->rng.between(20, 29);
-						parts[i].life--;
+						sim->part_change_type(rid, x+rx, y+ry, PT_BMTL);
+						rpart.tmp = sim->rng.between(20, 29);
+						part.life--;
 						//Draw a spark effect
-						parts[i].tmp = 1;
+						part.tmp = 1;
 					} //Base destroys a substance slower if acid destroys it faster
 					else if (elements[rt].Hardness > 0 && elements[rt].Hardness < 50 &&
-							parts[i].life >= (2*elements[rt].Hardness) && sim->rng.chance(50-elements[rt].Hardness, 1000))
+							part.life >= (2*elements[rt].Hardness) && sim->rng.chance(50-elements[rt].Hardness, 1000))
 					{
-						sim->kill_part(ID(r));
-						parts[i].life -= 2;
+						sim->kill_part(rid);
+						part.life -= 2;
 						//Draw a spark
-						parts[i].tmp = 1;
+						part.tmp = 1;
 					}
 				}
 			}
@@ -200,18 +203,19 @@ static int update(UPDATE_FUNC_ARGS)
 			auto r = pmap[y+ry][x+rx];
 			if (!r)
 				continue;
-			if (TYP(r) == PT_BASE && (parts[i].life > parts[ID(r)].life) && parts[i].life>1)
+			int rid = ID(r);
+			if (TYP(r) == PT_BASE && (part.life > parts[rid].life) && part.life > 1)
 			{
-				int temp = parts[i].life - parts[ID(r)].life;
+				int temp = part.life - parts[rid].life;
 				if (temp == 1)
 				{
-					parts[ID(r)].life++;
-					parts[i].life--;
+					parts[rid].life++;
+					part.life--;
 				}
 				else if (temp>0)
 				{
-					parts[ID(r)].life += temp/2;
-					parts[i].life -= temp/2;
+					parts[rid].life += temp/2;
+					part.life -= temp/2;
 				}
 			}
 		}

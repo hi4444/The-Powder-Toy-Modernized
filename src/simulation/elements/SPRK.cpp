@@ -57,23 +57,26 @@ static int update(UPDATE_FUNC_ARGS)
 {
 	auto &sd = SimulationData::CRef();
 	auto &elements = sd.elements;
-	int ct = parts[i].ctype;
+	auto &part = parts[i];
+	int ct = part.ctype;
+	auto cx = x / CELL;
+	auto cy = y / CELL;
 	Element_FIRE_update(UPDATE_FUNC_SUBCALL_ARGS);
 
-	if (parts[i].life<=0)
+	if (part.life <= 0)
 	{
 		if (ct==PT_WATR||ct==PT_SLTW||ct==PT_PSCN||ct==PT_NSCN||ct==PT_ETRD||ct==PT_INWR)
-			parts[i].temp = R_TEMP + 273.15f;
-		if (ct<=0 || ct>=PT_NUM || !elements[parts[i].ctype].Enabled)
+			part.temp = R_TEMP + 273.15f;
+		if (ct<=0 || ct>=PT_NUM || !elements[part.ctype].Enabled)
 			ct = PT_METL;
-		parts[i].ctype = PT_NONE;
-		parts[i].life = 4;
+		part.ctype = PT_NONE;
+		part.life = 4;
 		if (ct == PT_WATR)
-			parts[i].life = 64;
+			part.life = 64;
 		else if (ct == PT_SLTW)
-			parts[i].life = 54;
+			part.life = 54;
 		else if (ct == PT_SWCH)
-			parts[i].life = 14;
+			part.life = 14;
 		else if (ct == PT_RSST) //RSST disappears at the end of its spark cycle
 		{
 			sim->kill_part(i);
@@ -95,7 +98,7 @@ static int update(UPDATE_FUNC_ARGS)
 		Element_NTCT_update(UPDATE_FUNC_SUBCALL_ARGS);
 		break;
 	case PT_ETRD:
-		if (parts[i].life==1)
+		if (part.life == 1)
 		{
 			auto nearp = Element_ETRD_nearestSparkablePart(sim, i);
 			if (nearp == -1)
@@ -104,9 +107,9 @@ static int update(UPDATE_FUNC_ARGS)
 			if (pavg != PT_INSL && pavg != PT_RSSS)
 			{
 				sim->CreateLine(x, y, (int)(parts[nearp].x+0.5f), (int)(parts[nearp].y+0.5f), PT_PLSM);
-				parts[i].life = 20;
+				part.life = 20;
 				sim->part_change_type(i,x,y,ct);
-				ct = parts[i].ctype = PT_NONE;
+				ct = part.ctype = PT_NONE;
 				sim->part_change_type(nearp,(int)(parts[nearp].x+0.5f),(int)(parts[nearp].y+0.5f),PT_SPRK);
 				parts[nearp].life = 9;
 				parts[nearp].ctype = PT_ETRD;
@@ -114,20 +117,20 @@ static int update(UPDATE_FUNC_ARGS)
 		}
 		break;
 	case PT_NBLE:
-		if (parts[i].life<=1 && !(parts[i].tmp&0x1))
+		if (part.life <= 1 && !(part.tmp & 0x1))
 		{
-			parts[i].life = sim->rng.between(50, 199);
+			part.life = sim->rng.between(50, 199);
 			sim->part_change_type(i,x,y,PT_PLSM);
-			parts[i].ctype = PT_NBLE;
-			if (parts[i].temp > 5273.15)
-				parts[i].tmp |= 0x4;
-			parts[i].temp = 3500;
-			sim->pv[y/CELL][x/CELL] += 1;
+			part.ctype = PT_NBLE;
+			if (part.temp > 5273.15)
+				part.tmp |= 0x4;
+			part.temp = 3500;
+			sim->pv[cy][cx] += 1;
 		}
 		break;
 	case PT_TESC:
-		if (parts[i].tmp>300)
-			parts[i].tmp=300;
+		if (part.tmp > 300)
+			part.tmp = 300;
 		for (auto rx = -1; rx <= 1; rx++)
 		{
 			for (auto ry = -1; ry <= 1; ry++)
@@ -137,25 +140,25 @@ static int update(UPDATE_FUNC_ARGS)
 					auto r = pmap[y+ry][x+rx];
 					if (r)
 						continue;
-					if (parts[i].tmp>4 && sim->rng.chance(1, parts[i].tmp*parts[i].tmp/20+6))
+					if (part.tmp > 4 && sim->rng.chance(1, part.tmp * part.tmp / 20 + 6))
 					{
 						int p = sim->create_part(-1, x+rx*2, y+ry*2, PT_LIGH);
 						if (p!=-1)
 						{
-							parts[p].life = sim->rng.between(0, 2+parts[i].tmp/15) + parts[i].tmp/7;
-							if (parts[i].life>60)
-								parts[i].life=60;
-							parts[p].temp=parts[p].life*parts[i].tmp/2.5;
+							parts[p].life = sim->rng.between(0, 2 + part.tmp / 15) + part.tmp / 7;
+							if (part.life > 60)
+								part.life = 60;
+							parts[p].temp = parts[p].life * part.tmp / 2.5f;
 							parts[p].tmp2=1;
 							parts[p].tmp=int(atan2(-ry, (float)rx)/TPT_PI_FLT*360);
-							parts[p].dcolour = parts[i].dcolour;
-							parts[i].temp-=parts[i].tmp*2+parts[i].temp/5; // slight self-cooling
-							if (fabs(sim->pv[y/CELL][x/CELL])!=0.0f)
+							parts[p].dcolour = part.dcolour;
+							part.temp -= part.tmp*2 + part.temp/5; // slight self-cooling
+							if (fabs(sim->pv[cy][cx])!=0.0f)
 							{
-								if (fabs(sim->pv[y/CELL][x/CELL])<=0.5f)
-									sim->pv[y/CELL][x/CELL]=0;
+								if (fabs(sim->pv[cy][cx]) <= 0.5f)
+									sim->pv[cy][cx] = 0;
 								else
-									sim->pv[y/CELL][x/CELL]-=(sim->pv[y/CELL][x/CELL]>0)?0.5:-0.5;
+									sim->pv[cy][cx] -= (sim->pv[cy][cx] > 0) ? 0.5f : -0.5f;
 							}
 						}
 					}
@@ -186,8 +189,8 @@ static int update(UPDATE_FUNC_ARGS)
 		}
 		break;
 	case PT_TUNG:
-		if(parts[i].temp < 3595.0){
-			parts[i].temp += sim->rng.between(-4, 15);
+		if (part.temp < 3595.0f) {
+			part.temp += sim->rng.between(-4, 15);
 		}
 	default:
 		break;
@@ -201,43 +204,44 @@ static int update(UPDATE_FUNC_ARGS)
 				auto r = pmap[y+ry][x+rx];
 				if (!r)
 					continue;
+				auto rid = ID(r);
 				auto receiver = TYP(r);
 				auto sender = ct;
-				auto pavg = sim->parts_avg(ID(r), i,PT_INSL);
+				auto pavg = sim->parts_avg(rid, i, PT_INSL);
 				//receiver is the element SPRK is trying to conduct to
 				//sender is the element the SPRK is on
 				//First, some checks usually for (de)activation of elements
 				switch (receiver)
 				{
 				case PT_SWCH:
-					if (pavg!=PT_INSL && pavg!=PT_RSSS && parts[i].life<4)
+					if (pavg!=PT_INSL && pavg!=PT_RSSS && part.life < 4)
 					{
-						if(sender==PT_PSCN && parts[ID(r)].life<10) {
-							parts[ID(r)].life = 10;
+						if(sender==PT_PSCN && parts[rid].life<10) {
+							parts[rid].life = 10;
 						}
 						else if (sender==PT_NSCN)
 						{
-							parts[ID(r)].ctype = PT_NONE;
-							parts[ID(r)].life = 9;
+							parts[rid].ctype = PT_NONE;
+							parts[rid].life = 9;
 						}
 					}
 					break;
 				case PT_SPRK:
-					if (pavg!=PT_INSL && pavg!=PT_RSSS && parts[i].life<4)
+					if (pavg!=PT_INSL && pavg!=PT_RSSS && part.life < 4)
 					{
-						if (parts[ID(r)].ctype==PT_SWCH)
+						if (parts[rid].ctype==PT_SWCH)
 						{
 							if (sender==PT_NSCN)
 							{
-								sim->part_change_type(ID(r),x+rx,y+ry,PT_SWCH);
-								parts[ID(r)].ctype = PT_NONE;
-								parts[ID(r)].life = 9;
+								sim->part_change_type(rid, x+rx, y+ry, PT_SWCH);
+								parts[rid].ctype = PT_NONE;
+								parts[rid].life = 9;
 							}
 						}
-						else if(parts[ID(r)].ctype==PT_NTCT||parts[ID(r)].ctype==PT_PTCT)
+						else if(parts[rid].ctype==PT_NTCT || parts[rid].ctype==PT_PTCT)
 							if (sender==PT_METL)
 							{
-								parts[ID(r)].temp = 473.0f;
+								parts[rid].temp = 473.0f;
 							}
 					}
 					continue;
